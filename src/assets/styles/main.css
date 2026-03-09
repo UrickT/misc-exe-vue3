@@ -1,0 +1,22 @@
+:root {
+  --color-valid: #28a745;
+  --color-valid-hover: #1f8a38;
+  --color-invalid: #dc3545;
+  --color-invalid-hover: #c93241;
+
+  --color-grey-light-1: #e7e6e6;
+  --color-grey-light-3: #f8f8f8;
+  --color-grey-light-4: #f9f9f9;
+  --color-grey-dark-1: #666666;
+  --color-grey-dark-3: #9d9d9d;
+  --color-grey-dark-4: #b7b7b7;
+
+  --divider-thin: 0.0625rem;
+  --divider-regular: 0.125rem;
+  --divider-bold: 0.25rem;
+}
+
+/* 針對滾動區域的優化 */
+.overflow-scroll-y {
+  overflow-y: auto;
+}

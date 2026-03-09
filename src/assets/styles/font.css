@@ -1,0 +1,88 @@
+@font-face {
+  font-family: "Noto Sans TC";
+  src: url("../fonts/NotoSansTC-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-display: swap;
+  /* 效能優化：字體下載前先顯示預設字體，避免白屏 */
+}
+
+@font-face {
+  font-family: "Noto Sans TC";
+  src: url("../fonts/NotoSansTC-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans TC";
+  src: url("../fonts/NotoSansTC-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans TC";
+  src: url("../fonts/NotoSansTC-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans TC";
+  src: url("../fonts/NotoSansTC-Black.ttf") format("truetype");
+  font-weight: 800;
+  /* 或者 900，視下載的檔案定義而定 */
+  font-display: swap;
+}
+
+:root {
+  --font-main: "Noto Sans TC", Arial, sans-serif;
+
+  /* 標題大小變數 */
+  --fs-h1: 2.5rem;
+  /* 40px */
+  --fs-h2: 2.25rem;
+  /* 36px */
+  --fs-h3: 1.75rem;
+  /* 28px */
+  --fs-h4: 1.5rem;
+  /* 24px */
+  --fs-h5: 1.25rem;
+  /* 20px */
+  --fs-h6: 1rem;
+  /* 16px */
+}
+
+body {
+  font-family: var(--font-main);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  color: #212529;
+}
+
+.fw-light {
+  font-weight: 300;
+}
+
+.fw-normal {
+  font-weight: 400;
+}
+
+.fw-medium {
+  font-weight: 500;
+}
+
+.fw-bold {
+  font-weight: 700;
+}
+
+.fw-extrabold {
+  font-weight: 800;
+}
+
+/* 響應式標題系統優化 */
+.card-title {
+  font-size: clamp(var(--fs-h6), 2vw + 0.5rem, var(--fs-h5));
+  font-weight: 700;
+}

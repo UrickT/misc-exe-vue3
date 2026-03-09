@@ -1,0 +1,37 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "StudyNotes",
+  "steps": [
+    {
+      "file": "src/components/inputs/FormInputContainer.vue",
+      "description": "使用 toRefs 解構，這樣 layout, inRow 等依然是響應式的\n√ const { layout, noMargin, margin, inRow } = toRefs(p.inputConfig);\n× const { layout, noMargin, margin, inRow } = p.inputConfig;",
+      "line": 43
+    },
+    {
+      "file": "src/schema/field/factory.ts",
+      "description": "1. Omit<SelectFieldConfig, keyof typeof BASE_DEFAULTS>\n【口語翻譯】：從完整的設定中，剔除掉「工廠會自動幫我補齊」的部分。\nSelectFieldConfig：這是你原本定義的完整格式，包含 key, label, options 以及 hasDatabase, placeholder 等。\nkeyof typeof BASE_DEFAULTS：這指的是你在 BASE_DEFAULTS 物件裡已經寫好的那些屬性名（例如 hasDatabase, placeholder, validator 等）。\nOmit（剔除）的作用： 我們告訴 TypeScript：「因為工廠已經有預設值了，所以使用者在呼叫 defineField 時，不一定要傳入 hasDatabase 這些屬性。但那些我沒提供預設值的屬性（如 key, label, options），使用者就必須傳入。」\n\n2. & Partial<typeof BASE_DEFAULTS>\n【口語翻譯】：但是，如果使用者想「改掉」工廠的預設值，也要給他機會。\n& (Intersection)：代表「並且」。\nPartial (部分選填)：這指的是 BASE_DEFAULTS 裡的屬性現在變成「選填」了。\n結合起來看： 雖然第一步我們把 hasDatabase 剔除了（不強迫你填），但加上這句後，如果你想把 hasDatabase 從 true 改成 false，你依然可以填入它。",
+      "line": 44
+    },
+    {
+      "file": "src/components/inputs/FormInputGeneral.vue",
+      "description": "/**\n * defineModel 會自動完成以下三件事：\n * 1. 宣告名為 modelValue 的 prop\n * 2. 宣告 update:modelValue 的 emit\n * 3. 建立一個具備雙向綁定能力的本地響應式 Ref\n */",
+      "line": 29,
+      "title": "defineModel"
+    },
+    {
+      "file": "src/components/inputs/FormInputSelect.vue",
+      "description": "原始CODE：\nconst filteredData = ref([...props.fieldConfig.options.data]);\n報錯：\nType 'any[] | ComputedRef<any[]> | Ref<any[], any[]>' must have a '[Symbol.iterator]()' method that returns an iterator.\n在 TypeScript 中，你不能直接對一個可能是 Ref 的物件使用展開運算子 [...]，因為 Ref 本身是一個物件（盒子），而不是一個具備迭代器（Iterator）的陣列。\n\n解決方案：使用 unref 解開包裝\nVue 提供了一個非常方便的工具 unref()。它的邏輯是：如果參數是 Ref，就回傳 .value；如果不是，就原樣回傳。這能完美解決聯合型別的讀取問題。",
+      "line": 15
+    },
+    {
+      "file": "src/components/inputs/FormInputGeneral.vue",
+      "description": "原始code：\n:type=\"props.fieldConfig.type\"\n\n報錯：\nType '\"number\" | \"select\" | \"switch\" | \"text\" | \"multi-select\" | \"radio\" | \"date\"' is not assignable to type 'InputType | undefined'.\n  Type '\"select\"' is not assignable to type 'InputType | undefined'.\n\nInputType 是來自 BootstrapVue 或其他第三方庫的定義（例如 BFormInput 的 type 屬性），而自定義的props.fieldConfig.type需要更寬廣的類型（如 multi-select 或 switch），因此會發生衝突。\n\n解決方式：\n:type=\"props.fieldConfig.type as any\"",
+      "line": 40
+    },
+    {
+      "file": "src/components/PaperSelector/PaperSelectorContainer.vue",
+      "description": "❌ 遇到的問題\n在將 Store 中的配置傳入組件時，發生以下報錯：\n\nType 'FieldConfig | undefined' is not assignable to type 'FieldConfig'.\n\n🔍 原因分析\n嚴格檢查：fieldStore.fieldOf 的設計允許找不到 Key 時回傳 undefined。\n\n定義要求：FormInputGeneral 的 fieldConfig Props 定義為必填。\n\n安全性考量：TypeScript 預防了因配置缺失而導致的組件崩潰。\n\n🚀 解決方案對比\n非空斷言 (!)：\n\n語法：:field-config=\"fieldOf(...)!\"\n\n適用：確定 Key 一定存在，且追求最快開發速度。\n\n預設值回退 (||)：\n\n語法：:field-config=\"fieldOf(...) || {} as FieldConfig\"\n\n適用：防止白屏，允許組件以空配置渲染。\n\nv-if 渲染守衛 (推薦 ⭐)：\n\n語法：<FormInputGeneral v-if=\"paperField\" ... />\n\n適用：標準作法。確保數據就緒後才初始化組件，邏輯最嚴謹。\n\n💡 最佳實踐建議\n建議在 script 中使用 computed 封裝，保持 Template 簡潔：\n\nTypeScript\nconst paperField = computed(() => fieldStore.fieldOf('key', config));\n如此一來，在 Template 中只需檢查 v-if=\"paperField\" 即可確保型別安全與執行緒安全。",
+      "line": 37
+    }
+  ]
+}
