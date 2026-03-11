@@ -17,11 +17,12 @@ import { uploadedFileApi } from "@/api/apiServices/uploadedFile";
 import type { UploadedFile } from "@/schema/uploadedFile";
 import JSZip from "jszip";
 
-// --- 狀態與資料邏輯 ---
+// --- 狀態定義 ---
 const isMultiSelectMode = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
 const fileInput = ref<HTMLInputElement | null>(null);
 const showPreviewOnMobile = ref(false);
+
 const serverFiles = ref<UploadedFile[]>([]);
 const temporaryFiles = ref<any[]>([]);
 
@@ -33,6 +34,7 @@ const currentPreview = reactive({
   isServer: false,
 });
 
+// --- 生命週期與資料獲取 ---
 onMounted(async () => {
   await fetchServerFiles();
 });
@@ -46,32 +48,34 @@ const fetchServerFiles = async () => {
   }
 };
 
-const allFilesDisplay = computed(() => {
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8201";
-  const server = serverFiles.value.map((f) => {
-    const ext = f.originalName.split(".").pop()?.toLowerCase();
-    let mediaType = "other";
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!))
-      mediaType = "image";
-    else if (ext === "pdf") mediaType = "pdf";
-    else if (["doc", "docx"].includes(ext!)) mediaType = "word";
-    else if (["xls", "xlsx", "csv"].includes(ext!)) mediaType = "excel";
-    return {
-      id: `server-${f.fileSN}`,
-      isServer: true,
-      name: decodeURIComponent(f.originalName),
-      mediaType,
-      previewUrl: `${baseUrl}/${f.path.replace(/\\/g, "/")}`,
-    };
-  });
-  const local = temporaryFiles.value.map((f, index) => ({
-    ...f,
-    id: `local-${index}`,
-    isServer: false,
-  }));
-  return [...server, ...local];
-});
+// --- API 刪除功能 ---
+const handleDeleteFile = async (file: any) => {
+  if (!file.isServer) return;
 
+  if (confirm(`確定要刪除「${file.name}」嗎？`)) {
+    try {
+      const fileSN = file.id.replace("server-", "");
+      await uploadedFileApi.deleteBySn(fileSN);
+
+      await fetchServerFiles();
+
+      if (currentPreview.id === file.id) {
+        Object.assign(currentPreview, {
+          id: "",
+          name: "",
+          mediaType: "",
+          previewUrl: undefined,
+          isServer: false,
+        });
+      }
+    } catch (error) {
+      console.error("刪除失敗", error);
+      alert("檔案刪除失敗，請稍後再試");
+    }
+  }
+};
+
+// --- 下載邏輯 ---
 const handleDownloadAction = async () => {
   if (isMultiSelectMode.value) {
     if (selectedIds.value.size === 0) return;
@@ -101,6 +105,33 @@ const saveBlob = (blob: Blob, name: string) => {
   link.click();
   URL.revokeObjectURL(url);
 };
+
+// --- 顯示轉換邏輯 ---
+const allFilesDisplay = computed(() => {
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8201";
+  const server = serverFiles.value.map((f) => {
+    const ext = f.originalName.split(".").pop()?.toLowerCase();
+    let mediaType = "other";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!))
+      mediaType = "image";
+    else if (ext === "pdf") mediaType = "pdf";
+    else if (["doc", "docx"].includes(ext!)) mediaType = "word";
+    else if (["xls", "xlsx", "csv"].includes(ext!)) mediaType = "excel";
+    return {
+      id: `server-${f.fileSN}`,
+      isServer: true,
+      name: decodeURIComponent(f.originalName),
+      mediaType,
+      previewUrl: `${baseUrl}/${f.path.replace(/\\/g, "/")}`,
+    };
+  });
+  const local = temporaryFiles.value.map((f, index) => ({
+    ...f,
+    id: `local-${index}`,
+    isServer: false,
+  }));
+  return [...server, ...local];
+});
 
 const setPreview = (file: any) => {
   if (isMultiSelectMode.value) {
@@ -156,6 +187,10 @@ const setPreview = (file: any) => {
               @click="setPreview(file)"
             >
               <div class="thumb-container">
+                <button class="btn-delete" @click.stop="handleDeleteFile(file)">
+                  <SvgIcon :path="mdiClose" :size="12" />
+                </button>
+
                 <div
                   v-if="isMultiSelectMode && selectedIds.has(file.id)"
                   class="selected-mask"
@@ -164,6 +199,7 @@ const setPreview = (file: any) => {
                     <SvgIcon :path="mdiCheckBold" :size="20" color="#fff" />
                   </div>
                 </div>
+
                 <img
                   v-if="file.mediaType === 'image'"
                   :src="file.previewUrl"
@@ -183,12 +219,10 @@ const setPreview = (file: any) => {
                   :size="28"
                   :class="`icon-${file.mediaType}`"
                 />
+
                 <div v-if="file.isServer" class="status-badge">
                   <SvgIcon :path="mdiCheckCircle" :size="14" />
                 </div>
-                <button class="btn-delete" @click.stop="">
-                  <SvgIcon :path="mdiClose" :size="12" />
-                </button>
               </div>
               <div class="thumb-label">{{ file.name }}</div>
             </div>
@@ -268,9 +302,9 @@ const setPreview = (file: any) => {
               <p class="text-muted info-text mb-4">
                 此檔案類型不支援預覽，請下載後查看
               </p>
-              <!-- <button class="btn-add mx-auto" @click="handleDownloadAction">
+              <button class="btn-add mx-auto" @click="handleDownloadAction">
                 <SvgIcon :path="mdiDownload" :size="18" /> 立即下載
-              </button> -->
+              </button>
             </div>
           </template>
         </div>
@@ -280,13 +314,15 @@ const setPreview = (file: any) => {
 </template>
 
 <style scoped>
-/* --- 佈局與齊平 Header --- */
+/* --- 全局佈局 --- */
 .uploader-fullscreen {
   height: 100vh;
   width: 100%;
   overflow: hidden;
   background: #fff;
 }
+
+/* --- 齊平 Header 設定 (4rem = 64px) --- */
 .section-header {
   height: 4rem;
   border-bottom: 0.0625rem solid #eee;
@@ -296,21 +332,11 @@ const setPreview = (file: any) => {
   flex-shrink: 0;
 }
 
-/* --- 文字樣式 --- */
+/* --- 文字與按鈕樣式 --- */
 .title-text,
 .preview-title {
   font-size: 1rem;
 }
-.name-display {
-  font-size: 1.25rem;
-  color: #1f2937;
-  padding: 0 1rem;
-}
-.info-text {
-  font-size: 0.875rem;
-}
-
-/* --- 統一橢圓按鈕 --- */
 .btn-add {
   background: #6366f1;
   color: white;
@@ -339,7 +365,7 @@ const setPreview = (file: any) => {
   transition: 0.2s;
 }
 
-/* --- 檔案列表 (不放大) --- */
+/* --- 檔案列表與縮圖 (固定不縮放) --- */
 .file-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
@@ -361,55 +387,14 @@ const setPreview = (file: any) => {
 .file-item.active .thumb-container {
   border-color: #6366f1;
   background: #f5f3ff;
+  transform: none !important;
+}
+.file-item.is-selected .thumb-container {
+  border-color: #6366f1;
+  transform: none !important;
 }
 
-/* --- 優化後的預覽字卡樣式 --- */
-.no-preview-card {
-  background: #ffffff;
-  padding: 3.5rem 2rem;
-  border-radius: 1.5rem;
-  max-width: 28rem;
-  width: 90%;
-  box-shadow:
-    0 0.25rem 0.5rem rgba(0, 0, 0, 0.02),
-    0 1rem 2.5rem rgba(0, 0, 0, 0.08); /* 柔和多重陰影 */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.icon-circle {
-  width: 7.5rem;
-  height: 7.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 根據類型的淺色底座 */
-.bg-light-word {
-  background-color: #eff6ff;
-}
-.bg-light-excel {
-  background-color: #f0fdf4;
-}
-.bg-light-other {
-  background-color: #f9fafb;
-}
-
-/* Icon 顏色 */
-.icon-word {
-  color: #2b579a;
-}
-.icon-excel {
-  color: #217346;
-}
-.icon-pdf {
-  color: #f40f02;
-}
-
-/* --- 其他元件 --- */
+/* --- 刪除按鈕與狀態 --- */
 .btn-delete {
   position: absolute;
   top: 0.375rem;
@@ -417,14 +402,16 @@ const setPreview = (file: any) => {
   width: 1.375rem;
   height: 1.375rem;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
   border: none;
   cursor: pointer;
   opacity: 0;
-  transition: 0.2s;
+  transition: opacity 0.2s;
+  z-index: 10;
 }
 .file-item:hover .btn-delete {
   opacity: 1;
@@ -438,37 +425,47 @@ const setPreview = (file: any) => {
   border-radius: 50%;
   line-height: 0;
 }
-.selected-mask {
-  position: absolute;
-  inset: 0;
-  background: rgba(99, 102, 241, 0.4);
+
+/* --- 預覽字卡與內容 --- */
+.no-preview-card {
+  background: #ffffff;
+  padding: 3.5rem 2rem;
+  border-radius: 1.5rem;
+  max-width: 28rem;
+  width: 90%;
+  box-shadow:
+    0 0.25rem 0.5rem rgba(0, 0, 0, 0.02),
+    0 1rem 2.5rem rgba(0, 0, 0, 0.08);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 5;
 }
-.check-circle-main {
-  background: #6366f1;
+.icon-circle {
+  width: 7.5rem;
+  height: 7.5rem;
   border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.thumb-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.bg-light-word {
+  background-color: #eff6ff;
 }
-.thumb-label {
-  font-size: 0.75rem;
-  margin-top: 0.5rem;
-  color: #4b5563;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  text-align: center;
+.bg-light-excel {
+  background-color: #f0fdf4;
+}
+.bg-light-other {
+  background-color: #f9fafb;
+}
+
+.icon-word {
+  color: #2b579a;
+}
+.icon-excel {
+  color: #217346;
+}
+.icon-pdf {
+  color: #f40f02;
 }
 
 .preview-body {
@@ -490,6 +487,39 @@ const setPreview = (file: any) => {
   width: 100%;
   height: 100%;
   border: none;
+}
+.thumb-label {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  color: #4b5563;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
+}
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.selected-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(99, 102, 241, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+.check-circle-main {
+  background: #6366f1;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 47.99rem) {
