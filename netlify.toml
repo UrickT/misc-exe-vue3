@@ -1,5 +1,12 @@
+# 1. API 代理設定 (放在前面，優先級高)
 [[redirects]]
   from = "/api_1/*"
   to = "https://misc-exe-vue3-server.onrender.com/misc-exe-vue3-api/:splat"
   status = 200
-  force = true # 確保 Netlify 優先處理這個轉發
+  force = true
+
+# 2. SPA 路由回退設定 (放在最後，當找不到實體檔案時觸發)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
