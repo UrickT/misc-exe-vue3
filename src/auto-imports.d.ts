@@ -136,6 +136,9 @@ declare global {
   // @ts-ignore
   export type { Paper, PaperWithColor } from './schema/paper/types'
   import('./schema/paper/types')
+  // @ts-ignore
+  export type { UploadedFile } from './schema/uploadedFile/types'
+  import('./schema/uploadedFile/types')
 }
 
 // for vue template auto import

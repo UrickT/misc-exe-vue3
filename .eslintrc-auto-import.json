@@ -29,6 +29,7 @@
     "ShallowRef": true,
     "Slot": true,
     "Slots": true,
+    "UploadedFile": true,
     "VALIDATORS": true,
     "VNode": true,
     "WritableComputedRef": true,

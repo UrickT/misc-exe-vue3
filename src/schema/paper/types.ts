@@ -1,6 +1,6 @@
 /**
  * 「紙材」資料結構
- * * paperSN：紙張唯一序號
+ * * paperSN：唯一序號
  * * paperCategory：紙張總體類別 ID (例如: A, B, C)
  * * paperClass：紙張分類名稱 (例如: 包裝紙、美術紙)
  * * paperName：紙材名稱 (顯示於 UI 的主要名稱)

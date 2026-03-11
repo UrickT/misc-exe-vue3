@@ -1,19 +1,12 @@
 import { API_ROUTES } from "@/api/apiCollectionsFrontend";
+import { REQUEST } from "@/api/apiClient";
 import { type Paper } from "@/schema/paper";
 
 export const paperApi = {
-  getAll: async (): Promise<Paper[]> => {
-    try {
-      const url = API_ROUTES.PAPER.GET_ALL;
-      console.log("url: ", url);
+  /** 獲取所有紙材清單 */
+  getAll: () => REQUEST<Paper[]>(API_ROUTES.PAPER.GET_ALL),
 
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-
-      return await response.json();
-    } catch (error) {
-      console.error("API Fetching Error:", error);
-      throw error;
-    }
-  },
+  /** 根據 SN 獲取單一紙材 */
+  getBySn: (sn: number) =>
+    REQUEST<Paper>(`${API_ROUTES.PAPER.GET_BY_SN}/${sn}`),
 };

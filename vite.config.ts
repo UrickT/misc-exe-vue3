@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api_1": {
-          target: env.API_URL,
+          target: env.VITE_API_URL,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api_1/, "/misc-exe-vue3-api"),
           configure: (proxy, _options) => {

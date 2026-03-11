@@ -8,8 +8,12 @@ import {
   mdiFileExcel,
   mdiChevronLeft,
   mdiDownload,
+  mdiCheckCircle,
+  mdiCloudUpload,
 } from "@mdi/js";
 import SvgIcon from "@/components/atoms/SvgIcon.vue";
+import { uploadedFileApi } from "@/api/apiServices/uploadedFile";
+import type { UploadedFile } from "@/schema/uploadedFile";
 
 interface Props {
   maxSizeMB?: number;
@@ -21,11 +25,13 @@ const props = withDefaults(defineProps<Props>(), {
   accept: "image/*,application/pdf,.doc,.docx,.xls,.xlsx",
 });
 
-const emit = defineEmits(["change"]);
-
+// --- 狀態定義 ---
 const fileInput = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
+const isUploading = ref(false);
 const showPreviewOnMobile = ref(false);
+
+const serverFiles = ref<UploadedFile[]>([]);
 const temporaryFiles = ref<any[]>([]);
 
 const currentPreview = reactive({
@@ -33,10 +39,65 @@ const currentPreview = reactive({
   name: "",
   mediaType: "",
   previewUrl: undefined as string | undefined,
-  file: undefined as File | undefined,
+  isServer: false,
+  fileSN: null as number | null,
 });
 
-// --- 檔案處理邏輯 ---
+// --- 初始化 ---
+onMounted(async () => {
+  await fetchServerFiles();
+});
+
+const fetchServerFiles = async () => {
+  try {
+    const data = await uploadedFileApi.getAll();
+    serverFiles.value = data;
+  } catch (error) {
+    console.error("無法獲取檔案清單", error);
+  }
+};
+
+// --- 合併顯示列表 (處理 undefined 與中文編碼) ---
+const allFilesDisplay = computed(() => {
+  // 💡 防錯：若 .env 沒抓到，則給予後端預設地址
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8201";
+
+  const server = serverFiles.value.map((f) => {
+    const ext = f.originalName.split(".").pop()?.toLowerCase();
+    let mediaType = "other";
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!))
+      mediaType = "image";
+    else if (ext === "pdf") mediaType = "pdf";
+    else if (["doc", "docx"].includes(ext!)) mediaType = "word";
+    else if (["xls", "xlsx", "csv"].includes(ext!)) mediaType = "excel";
+
+    // 💡 修正路徑斜線並組合 URL
+    const cleanPath = f.path.replace(/\\/g, "/");
+
+    return {
+      id: `server-${f.fileSN}`,
+      isServer: true,
+      name: decodeURIComponent(f.originalName), // 解碼 URL 編碼的中文
+      fileSN: f.fileSN,
+      mediaType,
+      previewUrl:
+        mediaType === "image" || mediaType === "pdf"
+          ? `${baseUrl}/${cleanPath}`
+          : undefined,
+    };
+  });
+
+  const local = temporaryFiles.value.map((f, index) => ({
+    ...f,
+    id: `local-${index}`,
+    isServer: false,
+    localIndex: index,
+  }));
+
+  return [...server, ...local];
+});
+
+// --- 檔案選取 ---
 const processFiles = async (files: FileList | File[]) => {
   const fileArray = Array.from(files);
   for (const file of fileArray) {
@@ -54,33 +115,55 @@ const processFiles = async (files: FileList | File[]) => {
     else if (["xls", "xlsx", "csv"].includes(ext!)) mediaType = "excel";
 
     const reader = new FileReader();
-    reader.onload = (e: ProgressEvent<FileReader>) => {
-      const result = e.target?.result as string;
-      const newFile = {
+    reader.onload = (e) => {
+      temporaryFiles.value.push({
         name: file.name,
         mediaType,
         previewUrl:
-          mediaType === "image" || mediaType === "pdf" ? result : undefined,
+          mediaType === "image" || mediaType === "pdf"
+            ? e.target?.result
+            : undefined,
         file: file,
-        size: (file.size / 1024).toFixed(1) + " KB",
-      };
-      temporaryFiles.value.push(newFile);
-      setPreview(temporaryFiles.value.length - 1, newFile);
+      });
     };
 
     if (mediaType === "image" || mediaType === "pdf")
       reader.readAsDataURL(file);
     else reader.readAsArrayBuffer(file);
   }
-  emit("change", temporaryFiles.value);
 };
 
-// TS 安全的 Change 事件
-const onFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement;
-  if (target && target.files) {
-    processFiles(target.files);
-    target.value = ""; // 重置以允許選取同檔名
+// --- API 操作 ---
+const uploadAll = async () => {
+  if (temporaryFiles.value.length === 0) return;
+  isUploading.value = true;
+  try {
+    for (const item of temporaryFiles.value) {
+      await uploadedFileApi.upload(item.file);
+    }
+    temporaryFiles.value = [];
+    await fetchServerFiles();
+  } catch (error) {
+    alert("上傳失敗");
+  } finally {
+    isUploading.value = false;
+  }
+};
+
+const handleRemove = async (file: any) => {
+  if (file.isServer) {
+    if (confirm(`確定刪除 ${file.name}？`)) {
+      await uploadedFileApi.deleteBySn(file.fileSN);
+      await fetchServerFiles();
+    }
+  } else {
+    temporaryFiles.value.splice(file.localIndex, 1);
+  }
+
+  if (currentPreview.name === file.name) {
+    currentPreview.name = "";
+    currentPreview.previewUrl = undefined;
+    showPreviewOnMobile.value = false;
   }
 };
 
@@ -89,31 +172,13 @@ const setPreview = (index: number, file: any) => {
   currentPreview.name = file.name;
   currentPreview.mediaType = file.mediaType;
   currentPreview.previewUrl = file.previewUrl;
-  currentPreview.file = file.file;
+  currentPreview.isServer = file.isServer;
   if (window.innerWidth < 768) showPreviewOnMobile.value = true;
 };
 
-const downloadCurrentFile = () => {
-  if (!currentPreview.file) return;
-  const url = URL.createObjectURL(currentPreview.file);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = currentPreview.name;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const removeFile = (index: number) => {
-  temporaryFiles.value.splice(index, 1);
-  if (currentPreview.index === index) {
-    currentPreview.index = -1;
-    currentPreview.previewUrl = undefined;
-    currentPreview.name = "";
-    showPreviewOnMobile.value = false;
-  } else if (currentPreview.index > index) {
-    currentPreview.index--;
-  }
-  emit("change", temporaryFiles.value);
+const downloadFile = () => {
+  if (!currentPreview.previewUrl) return;
+  window.open(currentPreview.previewUrl, "_blank");
 };
 </script>
 
@@ -127,19 +192,33 @@ const removeFile = (index: number) => {
         <div
           class="section-header d-flex justify-content-between align-items-center px-3"
         >
-          <h6 class="mb-0 fw-bold text-dark">
-            待上傳 ({{ temporaryFiles.length }})
-          </h6>
-          <button class="btn-add" @click="fileInput?.click()">
-            <SvgIcon :path="mdiUpload" :size="16" /> 新增
-          </button>
+          <h6 class="mb-0 fw-bold">檔案管理 ({{ allFilesDisplay.length }})</h6>
+          <div class="d-flex gap-2">
+            <button
+              v-if="temporaryFiles.length > 0"
+              class="btn-upload-all"
+              @click="uploadAll"
+              :disabled="isUploading"
+            >
+              <SvgIcon :path="mdiCloudUpload" :size="16" />
+              {{ isUploading ? "上傳中" : "上傳" }}
+            </button>
+            <button class="btn-add" @click="fileInput?.click()">
+              <SvgIcon :path="mdiUpload" :size="16" /> 新增
+            </button>
+          </div>
           <input
             ref="fileInput"
             type="file"
             multiple
             :accept="accept"
             class="d-none"
-            @change="onFileChange"
+            @change="
+              (e) => {
+                processFiles((e.target as HTMLInputElement).files!);
+                (e.target as HTMLInputElement).value = '';
+              }
+            "
           />
         </div>
 
@@ -155,10 +234,10 @@ const removeFile = (index: number) => {
         >
           <div class="file-grid">
             <div
-              v-for="(file, index) in temporaryFiles"
-              :key="index"
+              v-for="(file, index) in allFilesDisplay"
+              :key="file.id"
               class="file-item"
-              :class="{ active: currentPreview.index === index }"
+              :class="{ active: currentPreview.name === file.name }"
               @click="setPreview(index, file)"
             >
               <div class="thumb-container">
@@ -182,16 +261,20 @@ const removeFile = (index: number) => {
                   :class="`icon-${file.mediaType}`"
                 />
 
-                <button class="btn-delete" @click.stop="removeFile(index)">
-                  <SvgIcon :path="mdiClose" :size="12" style="flex-shrink: 0" />
+                <div v-if="file.isServer" class="status-badge">
+                  <SvgIcon :path="mdiCheckCircle" :size="14" />
+                </div>
+
+                <button class="btn-delete" @click.stop="handleRemove(file)">
+                  <SvgIcon :path="mdiClose" :size="12" />
                 </button>
               </div>
               <div class="thumb-label">{{ file.name }}</div>
             </div>
           </div>
-          <div v-if="!temporaryFiles.length" class="empty-state">
+          <div v-if="!allFilesDisplay.length" class="empty-state">
             <SvgIcon :path="mdiUpload" :size="48" class="text-muted mb-3" />
-            <p>將檔案拖拽至此或點擊新增</p>
+            <p>拖拽或點擊新增檔案</p>
           </div>
         </div>
       </div>
@@ -209,9 +292,7 @@ const removeFile = (index: number) => {
           }}</span>
         </div>
 
-        <div
-          class="preview-body flex-grow-1 d-flex align-items-center justify-content-center p-3 p-md-5"
-        >
+        <div class="preview-body">
           <template v-if="currentPreview.name">
             <img
               v-if="currentPreview.mediaType === 'image'"
@@ -229,31 +310,27 @@ const removeFile = (index: number) => {
                 :path="
                   currentPreview.mediaType === 'word'
                     ? mdiFileWord
-                    : mdiFileExcel
+                    : currentPreview.mediaType === 'excel'
+                      ? mdiFileExcel
+                      : mdiFileDocumentOutline
                 "
                 :size="100"
                 :class="`icon-${currentPreview.mediaType} mb-4`"
               />
               <h4 class="fw-bold">{{ currentPreview.name }}</h4>
-              <p class="text-muted mb-4">
-                此檔案類型不支援直接預覽，請下載後查看內容。
-              </p>
-              <button class="btn-download-big" @click="downloadCurrentFile">
+              <p class="text-muted mb-4">此類型不支援預覽，請下載後查看。</p>
+              <button class="btn-download-big" @click="downloadFile">
                 <SvgIcon :path="mdiDownload" :size="20" class="me-2" /> 下載檔案
               </button>
             </div>
           </template>
-
           <div v-else class="text-muted text-center d-none d-md-block">
             <SvgIcon :path="mdiFileDocumentOutline" :size="60" class="mb-3" />
             <p>尚未選取檔案</p>
           </div>
         </div>
 
-        <div
-          v-if="currentPreview.name"
-          class="preview-footer d-none d-md-block"
-        >
+        <div v-if="currentPreview.name" class="preview-footer">
           {{ currentPreview.name }}
         </div>
       </div>
@@ -262,7 +339,6 @@ const removeFile = (index: number) => {
 </template>
 
 <style scoped>
-/* 容器高度 */
 .uploader-fullscreen {
   height: 100vh;
   width: 100%;
@@ -276,7 +352,6 @@ const removeFile = (index: number) => {
   flex-shrink: 0;
 }
 
-/* 按鈕樣式 */
 .btn-add {
   background: #6366f1;
   color: white;
@@ -289,53 +364,37 @@ const removeFile = (index: number) => {
   align-items: center;
   gap: 6px;
 }
-.btn-add:hover {
-  background: #4f46e5;
-}
-.btn-back {
-  background: none;
+.btn-upload-all {
+  background: #10b981;
+  color: white;
   border: none;
-  color: #333;
-  padding: 0;
+  padding: 8px 18px;
+  border-radius: 25px;
+  font-size: 14px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* 刪除按鈕 */
 .btn-delete {
-  /* 1. 定位與層級 */
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 10;
-
-  /* 2. 強制正圓形的核心設定 */
   width: 22px;
   height: 22px;
-  padding: 0; /* 移除內距防止撐開 */
-  aspect-ratio: 1 / 1; /* 強制寬高比 1:1 */
-  border-radius: 50%; /* 圓角 50% */
-  flex-shrink: 0; /* 絕對不允許被擠壓 */
-
-  /* 3. 內部置中 (使用 grid 通常比 flex 更精準) */
+  padding: 0;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-
-  /* 4. 視覺效果 */
   background: rgba(0, 0, 0, 0.6);
   color: #ffffff;
   border: none;
   cursor: pointer;
   opacity: 0;
   transition: all 0.2s ease;
-  line-height: 0; /* 移除行高造成的位移 */
 }
-
-/* 確保 SVG 圖示本身不帶任何 margin */
-.btn-delete svg {
-  display: block;
-  margin: 0;
-}
-
 .file-item:hover .btn-delete {
   opacity: 1;
 }
@@ -343,15 +402,20 @@ const removeFile = (index: number) => {
   background: #ef4444;
 }
 
-/* 檔案清單 */
+.status-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  color: #10b981;
+  background: white;
+  border-radius: 50%;
+  line-height: 0;
+}
+
 .file-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 16px;
-}
-.file-item {
-  cursor: pointer;
-  text-align: center;
 }
 .thumb-container {
   aspect-ratio: 1;
@@ -363,6 +427,7 @@ const removeFile = (index: number) => {
   position: relative;
   border: 2px solid transparent;
   overflow: hidden;
+  cursor: pointer;
 }
 .file-item.active .thumb-container {
   border-color: #6366f1;
@@ -380,23 +445,47 @@ const removeFile = (index: number) => {
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
-  width: 100%;
   padding: 0 4px;
 }
 
-/* 預覽元件 */
+/* 💡 預覽區佈局修正 */
+.preview-body {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  padding: 24px;
+}
+
 .main-preview-img {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
+  max-width: 100%;
+  max-height: 100%; /* 確保圖片不超出預覽容器 */
+  object-fit: contain; /* 保持比例縮放 */
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   border-radius: 4px;
 }
+
 .main-preview-pdf {
   width: 100%;
   height: 100%;
   border: none;
 }
+
+.preview-footer {
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-size: 12px;
+  background: #fff;
+  border-top: 1px solid #eee;
+  color: #666;
+  flex-shrink: 0; /* 禁止 footer 被擠壓 */
+  z-index: 10;
+  font-weight: 500;
+}
+
 .no-preview-card {
   background: white;
   padding: 3rem;
@@ -416,7 +505,6 @@ const removeFile = (index: number) => {
   align-items: center;
 }
 
-/* 顏色 */
 .icon-word {
   color: #2b579a;
 }
@@ -427,13 +515,9 @@ const removeFile = (index: number) => {
   color: #f40f02;
 }
 
-/* RWD 邏輯 */
 @media (max-width: 767.98px) {
   .mobile-hidden {
     display: none !important;
-  }
-  .preview-section {
-    display: none;
   }
   .mobile-visible {
     display: flex !important;
@@ -455,14 +539,5 @@ const removeFile = (index: number) => {
   align-items: center;
   justify-content: center;
   color: #9ca3af;
-}
-.preview-footer {
-  height: 40px;
-  line-height: 40px;
-  text-align: center;
-  font-size: 12px;
-  background: #fff;
-  border-top: 1px solid #eee;
-  color: #999;
 }
 </style>
