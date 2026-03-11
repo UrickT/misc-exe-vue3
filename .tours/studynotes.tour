@@ -8,6 +8,11 @@
       "line": 43
     },
     {
+      "file": "vite.config.ts",
+      "description": "當在前端執行 fetch('/api_1/list') 時，發生了以下三步轉向：\n1. 前端請求：http://localhost:5173/api_1/list\n    在 F12 看到的「假門牌」。\n2. Proxy 轉發 (Target)：發現 /api_1，於是把請求發往 http://localhost:3008。\n    此時目標變成了：http://localhost:3008/api_1/list。\n3. Proxy 重寫 (Rewrite)：根據你的規則，把 /api_1 換成 /misc-exe-vue3-api。\n    最終送達後端的是：http://localhost:3008/misc-exe-vue3-api/list。",
+      "line": 27
+    },
+    {
       "file": "src/schema/field/factory.ts",
       "description": "1. Omit<SelectFieldConfig, keyof typeof BASE_DEFAULTS>\n【口語翻譯】：從完整的設定中，剔除掉「工廠會自動幫我補齊」的部分。\nSelectFieldConfig：這是你原本定義的完整格式，包含 key, label, options 以及 hasDatabase, placeholder 等。\nkeyof typeof BASE_DEFAULTS：這指的是你在 BASE_DEFAULTS 物件裡已經寫好的那些屬性名（例如 hasDatabase, placeholder, validator 等）。\nOmit（剔除）的作用： 我們告訴 TypeScript：「因為工廠已經有預設值了，所以使用者在呼叫 defineField 時，不一定要傳入 hasDatabase 這些屬性。但那些我沒提供預設值的屬性（如 key, label, options），使用者就必須傳入。」\n\n2. & Partial<typeof BASE_DEFAULTS>\n【口語翻譯】：但是，如果使用者想「改掉」工廠的預設值，也要給他機會。\n& (Intersection)：代表「並且」。\nPartial (部分選填)：這指的是 BASE_DEFAULTS 裡的屬性現在變成「選填」了。\n結合起來看： 雖然第一步我們把 hasDatabase 剔除了（不強迫你填），但加上這句後，如果你想把 hasDatabase 從 true 改成 false，你依然可以填入它。",
       "line": 44

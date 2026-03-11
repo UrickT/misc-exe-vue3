@@ -916,6 +916,7 @@ export const COLOR_MAP: Record<string, string> = {
  * // => [{ itemID: 'A', itemName: 'A', paperID: 'P001' }]
  */
 export const getOptionsOf = (
+  papersData: Paper[],
   key: keyof Paper,
   prefixKey?: keyof Paper,
 ): Array<{
@@ -929,7 +930,7 @@ export const getOptionsOf = (
   // Value: 該值對應的第一個原始 Paper 物件
   const uniqueMap = new Map<any, Paper>();
 
-  RAW_PAPERS_DATA.forEach((paper) => {
+  papersData.forEach((paper) => {
     const targetValue = paper[key];
     // 只記錄第一次出現的值，確保唯一性
     if (!uniqueMap.has(targetValue)) {
@@ -967,6 +968,7 @@ export const getOptionsOf = (
  * @param prefixKey - (選填) 額外提取的欄位 (如: 'paperID')
  */
 export const extractFilteredOptions = (
+  papersData: Paper[],
   currentForm: Partial<Record<keyof Paper, any>>,
   key: keyof Paper,
   prefixKey?: keyof Paper,
@@ -985,7 +987,7 @@ export const extractFilteredOptions = (
   ];
 
   // 2. 篩選：從全局的 RAW_PAPERS_DATA 中找出符合目前表單條件的資料
-  const filteredData = RAW_PAPERS_DATA.filter((paper) => {
+  const filteredData = papersData.filter((paper) => {
     return linkedKeys.every((fKey) => {
       // 如果該欄位就是我們現在要提取選項的欄位，則不應過濾自己
       if (fKey === key) return true;

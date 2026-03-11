@@ -1,19 +1,35 @@
 <script setup lang="ts">
 import _ from "lodash";
 
-import type { FormMode } from "@/schema/.general";
+import { type FormMode } from "@/schema/.general";
 import {
   type GeneralFieldConfig,
   type SelectFieldConfig,
 } from "@/schema/field";
 import {
-  RAW_PAPERS_DATA,
+  // RAW_PAPERS_DATA,
   COLOR_MAP,
   getOptionsOf,
   extractFilteredOptions,
 } from "@/mock/paperData";
-import type { Paper } from "@/schema/paper";
+import { type Paper } from "@/schema/paper";
 import { Search } from "@element-plus/icons-vue";
+
+import { paperApi } from "@/api/apiServices/paper";
+const RAW_PAPERS_DATA = ref<Paper[]>([]);
+const isLoading = ref(true);
+const error = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    // 呼叫你寫好的 paperApi.getAll()
+    RAW_PAPERS_DATA.value = await paperApi.getAll();
+  } catch (err) {
+    error.value = "無法載入紙張資料";
+  } finally {
+    isLoading.value = false;
+  }
+});
 
 const weightUnit = ref<string>("P");
 const mode = ref<FormMode>("search");
@@ -35,7 +51,7 @@ const SCHEMA_MAP = {
     key: "paperClass",
     label: "紙材總類",
     options: {
-      data: getOptionsOf("paperClass", "paperCategory"),
+      data: getOptionsOf(RAW_PAPERS_DATA.value, "paperClass", "paperCategory"),
       valueField: "itemID",
       textField: "itemName",
       prefixKey: "paperCategory",
@@ -48,7 +64,7 @@ const SCHEMA_MAP = {
     key: "paperName",
     label: "紙材名稱",
     options: {
-      data: getOptionsOf("paperName"),
+      data: getOptionsOf(RAW_PAPERS_DATA.value, "paperName"),
       valueField: "itemID",
       textField: "itemName",
     },
@@ -61,7 +77,7 @@ const SCHEMA_MAP = {
     key: "paperColor",
     label: "紙材顏色",
     options: {
-      data: getOptionsOf("paperColor"), // 假設你有這個 options function
+      data: getOptionsOf(RAW_PAPERS_DATA.value, "paperColor"), // 假設你有這個 options function
       valueField: "itemID",
       textField: "itemName",
     },
@@ -73,7 +89,7 @@ const SCHEMA_MAP = {
     key: "paperWeight",
     label: "紙材重量(P)",
     options: {
-      data: _.sortBy(getOptionsOf("paperWeight"), [
+      data: _.sortBy(getOptionsOf(RAW_PAPERS_DATA.value, "paperWeight"), [
         (item: any) => Number(item.itemName),
       ]),
       valueField: "itemID",
@@ -102,11 +118,15 @@ const rules = reactive<Record<string, any>>({});
 
 // 建立一個存放所有 Select 選項的容器
 const dynamicOptions = reactive<Record<string, any>>({
-  paperClass: computed(() => extractFilteredOptions(ruleForm, "paperClass")),
-  paperName: computed(() => extractFilteredOptions(ruleForm, "paperName")),
+  paperClass: computed(() =>
+    extractFilteredOptions(RAW_PAPERS_DATA.value, ruleForm, "paperClass"),
+  ),
+  paperName: computed(() =>
+    extractFilteredOptions(RAW_PAPERS_DATA.value, ruleForm, "paperName"),
+  ),
   paperColor: computed(() => sortedColorOptions.value),
   paperWeight: computed(() =>
-    _.sortBy(extractFilteredOptions(ruleForm, "paperWeight"), [
+    _.sortBy(extractFilteredOptions(RAW_PAPERS_DATA.value, ruleForm, "paperWeight"), [
       (item: any) => Number(item.itemName),
     ]),
   ),
@@ -207,7 +227,7 @@ const hasSelectedFilter = computed(() => {
  */
 const formattedListOfProductPaperAll = computed(() => {
   // 直接 map，不需先 cloneDeep 全陣列
-  return RAW_PAPERS_DATA.map((paper) => {
+  return RAW_PAPERS_DATA.value.map((paper) => {
     // 1. 處理空字串轉「無」的邏輯
     const formattedFields = Object.entries(paper).reduce(
       (acc, [key, value]) => {
@@ -277,8 +297,8 @@ const sortedColorOptions = computed(() => {
     .some((k) => !!ruleForm[k]);
 
   const options = hasOtherFilters
-    ? extractFilteredOptions(ruleForm, "paperColor")
-    : getOptionsOf("paperColor");
+    ? extractFilteredOptions(RAW_PAPERS_DATA.value, ruleForm, "paperColor")
+    : getOptionsOf(RAW_PAPERS_DATA.value, "paperColor");
 
   // 2. 分離「無」選項與其他顏色
   const [noColorOptions, colorOptions] = _.partition(
@@ -384,252 +404,262 @@ watch(
 
 <template>
   <BContainer fluid class="p-0 container-layout">
-    <BRow class="g-0 h-100">
-      <BCol cols="12" md="3" class="left-panel">
-        <BCard no-body class="h-100 border-0 shadow-sm">
-          <BCardBody class="p-0 h-100 flex-grow-1 d-flex flex-column">
-            <ElForm
-              ref="ruleFormRef"
-              :model="ruleForm"
-              :rules="rules"
-              class="p-0 h-100 flex-grow-1 d-flex flex-column"
-            >
-              <!-- 標題 -->
-              <div class="m-3">
-                <span class="card-title"> 紙材查詢 </span>
-              </div>
+    <div v-if="isLoading">載入中...</div>
+    <div v-else-if="error">{{ error }}</div>
+    <div v-else>
+      <BRow class="g-0 h-100">
+        <BCol cols="12" md="3" class="left-panel">
+          <BCard no-body class="h-100 border-0 shadow-sm">
+            <BCardBody class="p-0 h-100 flex-grow-1 d-flex flex-column">
+              <ElForm
+                ref="ruleFormRef"
+                :model="ruleForm"
+                :rules="rules"
+                class="p-0 h-100 flex-grow-1 d-flex flex-column"
+              >
+                <!-- 標題 -->
+                <div class="m-3">
+                  <span class="card-title"> 紙材查詢 </span>
+                </div>
 
-              <!-- 底部固定區 -->
-              <ElDivider class="m-0" />
+                <!-- 底部固定區 -->
+                <ElDivider class="m-0" />
 
-              <!-- 上方搜尋區：可滾動 -->
+                <!-- 上方搜尋區：可滾動 -->
 
-              <div class="p-3 form-scroll-area">
-                <!-- 搜尋名稱或代號 -->
-                <div class="mb-2">
-                  <FormInputGeneral
-                    v-model="ruleForm['paperNameAndIDQuery']"
-                    :field-config="fieldsConfigs.paperNameAndIDQuery"
-                    :input-config="inputConfigs.paperNameAndIDQuery"
-                    :prefix-icon="Search"
-                  />
-                  <ElAlert
-                    v-if="
-                      !_.isEmpty(ruleForm['paperNameAndIDQuery']) &&
-                      hasSelectedFilter
-                    "
-                    type="warning"
-                    class="mt-2 p-2"
-                    :closable="false"
-                  >
-                    <div
-                      class="d-flex justify-content-between align-items-center w-100"
+                <div class="p-3 form-scroll-area">
+                  <!-- 搜尋名稱或代號 -->
+                  <div class="mb-2">
+                    <FormInputGeneral
+                      v-model="ruleForm['paperNameAndIDQuery']"
+                      :field-config="fieldsConfigs.paperNameAndIDQuery"
+                      :input-config="inputConfigs.paperNameAndIDQuery"
+                      :prefix-icon="Search"
+                    />
+                    <ElAlert
+                      v-if="
+                        !_.isEmpty(ruleForm['paperNameAndIDQuery']) &&
+                        hasSelectedFilter
+                      "
+                      type="warning"
+                      class="mt-2 p-2"
+                      :closable="false"
                     >
-                      <!-- 左邊文字 -->
-                      <span class="alert-left">正在已選條件下搜尋</span>
-
-                      <!-- 右邊清除篩選 -->
-                      <span
-                        class="ms-3 alert-right"
-                        @click="resetSearchConditionsExceptQuery"
-                      >
-                        清除篩選
-                      </span>
-                    </div>
-                  </ElAlert>
-                </div>
-
-                <!-- 紙材總類 -->
-                <div class="mb-2">
-                  <FormInputSelect
-                    v-model="ruleForm['paperClass']"
-                    :field-config="fieldsConfigs.paperClass"
-                    :input-config="inputConfigs.paperClass"
-                  />
-                </div>
-
-                <!-- 紙材名稱 -->
-                <div class="mb-2">
-                  <FormInputSelect
-                    v-model="ruleForm['paperName']"
-                    :field-config="fieldsConfigs.paperName"
-                    :input-config="inputConfigs.paperName"
-                  />
-                </div>
-
-                <!-- 紙材重量 -->
-                <div class="mb-2">
-                  <FormInputSelect
-                    v-model="ruleForm['paperWeight']"
-                    :field-config="fieldsConfigs.paperWeight"
-                    :input-config="inputConfigs.paperWeight"
-                  />
-                </div>
-
-                <!-- 紙材顏色 -->
-                <div class="mb-2">
-                  <ElFormItem
-                    :label="
-                      inputConfigs.paperColor.label ??
-                      fieldsConfigs.paperColor.label
-                    "
-                    :label-position="inputConfigs.paperColor.labelPosition"
-                    :prop="fieldsConfigs.paperColor.key"
-                    class="mb-0"
-                  >
-                    <div class="mt-2 mb-4 color-selector">
                       <div
-                        v-for="(colorOption, index) in sortedColorOptions"
-                        :key="index"
-                        :class="{
-                          selected:
-                            ruleForm['paperColor'] === colorOption.itemID,
-                        }"
-                        class="color-circle-wrapper"
-                        @click="ruleForm['paperColor'] = colorOption.itemID"
+                        class="d-flex justify-content-between align-items-center w-100"
                       >
-                        <!-- 無顏色顯示文字 -->
-                        <div
-                          v-if="colorOption.itemID === '無'"
-                          class="color-circle circle-text-color"
-                        >
-                          無
-                        </div>
+                        <!-- 左邊文字 -->
+                        <span class="alert-left">正在已選條件下搜尋</span>
 
-                        <!-- 有顏色顯示圓形 -->
-                        <div
-                          v-else
-                          class="color-circle circle-text-color"
-                          :style="{
-                            backgroundColor: colorOption.hexColor,
-                            color: getTextColor(colorOption.hexColor),
-                          }"
+                        <!-- 右邊清除篩選 -->
+                        <span
+                          class="ms-3 alert-right"
+                          @click="resetSearchConditionsExceptQuery"
                         >
-                          {{ colorOption.itemName }}
+                          清除篩選
+                        </span>
+                      </div>
+                    </ElAlert>
+                  </div>
+
+                  <!-- 紙材總類 -->
+                  <div class="mb-2">
+                    <FormInputSelect
+                      v-model="ruleForm['paperClass']"
+                      :field-config="fieldsConfigs.paperClass"
+                      :input-config="inputConfigs.paperClass"
+                    />
+                  </div>
+
+                  <!-- 紙材名稱 -->
+                  <div class="mb-2">
+                    <FormInputSelect
+                      v-model="ruleForm['paperName']"
+                      :field-config="fieldsConfigs.paperName"
+                      :input-config="inputConfigs.paperName"
+                    />
+                  </div>
+
+                  <!-- 紙材重量 -->
+                  <div class="mb-2">
+                    <FormInputSelect
+                      v-model="ruleForm['paperWeight']"
+                      :field-config="fieldsConfigs.paperWeight"
+                      :input-config="inputConfigs.paperWeight"
+                    />
+                  </div>
+
+                  <!-- 紙材顏色 -->
+                  <div class="mb-2">
+                    <ElFormItem
+                      :label="
+                        inputConfigs.paperColor.label ??
+                        fieldsConfigs.paperColor.label
+                      "
+                      :label-position="inputConfigs.paperColor.labelPosition"
+                      :prop="fieldsConfigs.paperColor.key"
+                      class="mb-0"
+                    >
+                      <div class="mt-2 mb-4 color-selector">
+                        <div
+                          v-for="(colorOption, index) in sortedColorOptions"
+                          :key="index"
+                          :class="{
+                            selected:
+                              ruleForm['paperColor'] === colorOption.itemID,
+                          }"
+                          class="color-circle-wrapper"
+                          @click="ruleForm['paperColor'] = colorOption.itemID"
+                        >
+                          <!-- 無顏色顯示文字 -->
+                          <div
+                            v-if="colorOption.itemID === '無'"
+                            class="color-circle circle-text-color"
+                          >
+                            無
+                          </div>
+
+                          <!-- 有顏色顯示圓形 -->
+                          <div
+                            v-else
+                            class="color-circle circle-text-color"
+                            :style="{
+                              backgroundColor: colorOption.hexColor,
+                              color: getTextColor(colorOption.hexColor),
+                            }"
+                          >
+                            {{ colorOption.itemName }}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </ElFormItem>
-                </div>
-              </div>
-
-              <!-- 底部固定區 -->
-              <ElDivider class="m-0" />
-
-              <div class="p-4">
-                <!-- 最終選擇 -->
-                <div class="mb-3">
-                  <FormInputTextarea
-                    v-model="ruleForm['paperMaterial_1']"
-                    :field-config="fieldsConfigs.paperMaterial_1"
-                    :input-config="inputConfigs.paperMaterial_1"
-                  />
-                </div>
-                <ElButton
-                  class="w-100 d-flex align-items-center justify-content-center"
-                  plain
-                  size="large"
-                  type="info"
-                  @click="resetSearchConditions"
-                >
-                  <SvgIcon :path="mdiCloseCircle" :size="20" />
-                  <span class="ms-1">清空全部</span>
-                </ElButton>
-              </div>
-            </ElForm>
-          </BCardBody>
-        </BCard>
-      </BCol>
-
-      <!-- 右側可滾動區域 -->
-      <BCol cols="12" md="9" class="right-panel">
-        <BCard no-body class="d-flex flex-column right-card">
-          <BCardBody
-            class="p-0 d-flex flex-column"
-            style="flex: 1 1 auto; overflow: hidden"
-          >
-            <div v-if="filteredListOfCard.length !== 0" class="p-4 paper-grid">
-              <BCard
-                v-for="(card, index) in filteredListOfCard"
-                :key="'paper-card-' + index"
-                class="position-relative card-item"
-                :class="{
-                  'selected-card': selectedPaper?.paperSN === card.paperSN,
-                }"
-                :style="{
-                  backgroundColor: card.hexColor,
-                  color: getTextColor(card.hexColor), // 根據亮度自動調整文字顏色
-                }"
-                @click="selectedPaper = card"
-              >
-                <!-- 選取標記 -->
-                <template v-if="selectedPaper?.paperSN === card.paperSN">
-                  <SvgIcon
-                    :path="mdiCheck"
-                    :size="30"
-                    class="selected-card-icon"
-                  />
-                </template>
-
-                <BCardBody class="p-0 h-100 d-flex flex-column">
-                  <!-- 上方資訊靠上 -->
-                  <div class="flex-grow-1">
-                    <div class="mb-2 badge-paper-class">
-                      {{ card.paperClass }}
-                    </div>
-                    <div class="mb-1 font-medium">
-                      {{ card.paperName }}
-                    </div>
-                    <div class="paper-color-dark">
-                      {{
-                        card.paperColor === "無"
-                          ? "無指定顏色"
-                          : card.paperColor
-                      }}
-                    </div>
+                    </ElFormItem>
                   </div>
+                </div>
 
-                  <!-- 下方資訊固定底部 -->
-                  <div
-                    class="d-flex align-items-center justify-content-between mt-auto"
+                <!-- 底部固定區 -->
+                <ElDivider class="m-0" />
+
+                <div class="p-4">
+                  <!-- 最終選擇 -->
+                  <div class="mb-3">
+                    <FormInputTextarea
+                      v-model="ruleForm['paperMaterial_1']"
+                      :field-config="fieldsConfigs.paperMaterial_1"
+                      :input-config="inputConfigs.paperMaterial_1"
+                    />
+                  </div>
+                  <ElButton
+                    class="w-100 d-flex align-items-center justify-content-center"
+                    plain
+                    size="large"
+                    type="info"
+                    @click="resetSearchConditions"
                   >
-                    <div class="shortID-dark">代號:{{ card.shortID }}</div>
-                    <div v-if="card.paperWeight === '無'" class="shortID-dark">
-                      無指定重量
-                    </div>
-                    <div v-else class="font-medium">
-                      {{ card.paperWeight }}{{ weightUnit }}
-                    </div>
-                  </div>
-                </BCardBody>
-              </BCard>
+                    <SvgIcon :path="mdiCloseCircle" :size="20" />
+                    <span class="ms-1">清空全部</span>
+                  </ElButton>
+                </div>
+              </ElForm>
+            </BCardBody>
+          </BCard>
+        </BCol>
 
-              <!-- 填充空白格子 -->
-              <template v-if="filteredListOfCard.length % 4 !== 0">
-                <div
-                  v-for="n in 4 - (filteredListOfCard.length % 4)"
-                  :key="'empty-' + n"
-                ></div>
-              </template>
-            </div>
-            <div
-              v-else
-              class="h-100 d-flex align-items-center justify-content-center"
-              style="min-height: 150px"
+        <!-- 右側可滾動區域 -->
+        <BCol cols="12" md="9" class="right-panel">
+          <BCard no-body class="d-flex flex-column right-card">
+            <BCardBody
+              class="p-0 d-flex flex-column"
+              style="flex: 1 1 auto; overflow: hidden"
             >
-              <BCard class="w-100 h-auto border-0 bg-transparent">
-                <BCardBody
-                  class="m-0 p-3 d-flex flex-column align-items-center justify-content-center text-center"
+              <div
+                v-if="filteredListOfCard.length !== 0"
+                class="p-4 paper-grid"
+              >
+                <BCard
+                  v-for="(card, index) in filteredListOfCard"
+                  :key="'paper-card-' + index"
+                  class="position-relative card-item"
+                  :class="{
+                    'selected-card': selectedPaper?.paperSN === card.paperSN,
+                  }"
+                  :style="{
+                    backgroundColor: card.hexColor,
+                    color: getTextColor(card.hexColor), // 根據亮度自動調整文字顏色
+                  }"
+                  @click="selectedPaper = card"
                 >
-                  <el-empty :image-size="200" />
-                  <div class="mt-2 text-mutedf">請重新調整您的篩選條件</div>
-                </BCardBody>
-              </BCard>
-            </div>
-          </BCardBody>
-        </BCard>
-      </BCol>
-    </BRow>
+                  <!-- 選取標記 -->
+                  <template v-if="selectedPaper?.paperSN === card.paperSN">
+                    <SvgIcon
+                      :path="mdiCheck"
+                      :size="30"
+                      class="selected-card-icon"
+                    />
+                  </template>
+
+                  <BCardBody class="p-0 h-100 d-flex flex-column">
+                    <!-- 上方資訊靠上 -->
+                    <div class="flex-grow-1">
+                      <div class="mb-2 badge-paper-class">
+                        {{ card.paperClass }}
+                      </div>
+                      <div class="mb-1 font-medium">
+                        {{ card.paperName }}
+                      </div>
+                      <div class="paper-color-dark">
+                        {{
+                          card.paperColor === "無"
+                            ? "無指定顏色"
+                            : card.paperColor
+                        }}
+                      </div>
+                    </div>
+
+                    <!-- 下方資訊固定底部 -->
+                    <div
+                      class="d-flex align-items-center justify-content-between mt-auto"
+                    >
+                      <div class="shortID-dark">代號:{{ card.shortID }}</div>
+                      <div
+                        v-if="card.paperWeight === '無'"
+                        class="shortID-dark"
+                      >
+                        無指定重量
+                      </div>
+                      <div v-else class="font-medium">
+                        {{ card.paperWeight }}{{ weightUnit }}
+                      </div>
+                    </div>
+                  </BCardBody>
+                </BCard>
+
+                <!-- 填充空白格子 -->
+                <template v-if="filteredListOfCard.length % 4 !== 0">
+                  <div
+                    v-for="n in 4 - (filteredListOfCard.length % 4)"
+                    :key="'empty-' + n"
+                  ></div>
+                </template>
+              </div>
+              <div
+                v-else
+                class="h-100 d-flex align-items-center justify-content-center"
+                style="min-height: 150px"
+              >
+                <BCard class="w-100 h-auto border-0 bg-transparent">
+                  <BCardBody
+                    class="m-0 p-3 d-flex flex-column align-items-center justify-content-center text-center"
+                  >
+                    <el-empty :image-size="200" />
+                    <div class="mt-2 text-mutedf">請重新調整您的篩選條件</div>
+                  </BCardBody>
+                </BCard>
+              </div>
+            </BCardBody>
+          </BCard>
+        </BCol>
+      </BRow>
+    </div>
   </BContainer>
 </template>
 

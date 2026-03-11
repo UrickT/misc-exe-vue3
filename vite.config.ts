@@ -11,13 +11,35 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import { playwright } from "@vitest/browser-playwright";
+
 const dirname =
   typeof __dirname !== "undefined"
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
+const LOCAL_URL = "http://localhost:3008";
+
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
+  server: {
+    proxy: {
+      "/api_1": {
+        target: LOCAL_URL,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api_1/, "/misc-exe-vue3-api"),
+        configure: (proxy, _options) => {
+          // proxy 是 http-proxy 的實例
+          proxy.on("proxyReq", (proxyReq, _req, _res) => {
+            console.log("真實送到後端的路徑：", proxyReq.path);
+          });
+          proxy.on("proxyRes", (_proxyRes, req, _res) => {
+            // 注意：這裡直接抓不到原本定義的 BASE_URL，通常印出 req.url 即可
+            console.log("前端原始請求路徑：", req.url);
+          });
+        },
+      },
+    },
+  },
   plugins: [
     vue(),
     AutoImport({
@@ -26,7 +48,7 @@ export default defineConfig({
         "vue-router",
         "pinia",
         {
-          'lodash': [["default", "_"]],
+          lodash: [["default", "_"]],
           "@/config/validators": [["default", "VALIDATORS"]],
         },
 

@@ -8,6 +8,7 @@ export {}
 declare global {
   const COLOR_MAP: typeof import('./mock/paperData').COLOR_MAP
   const EffectScope: typeof import('vue').EffectScope
+  const PaperModel: typeof import('./schema/paper/model').PaperModel
   const RAW_PAPERS_DATA: typeof import('./mock/paperData').RAW_PAPERS_DATA
   const VALIDATORS: typeof import('./config/validators').VALIDATORS
   const _: typeof import('lodash').default
