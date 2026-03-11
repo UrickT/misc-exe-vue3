@@ -89,13 +89,13 @@ const handleFileChange = (e: Event) => {
 
 const handleUploadToServer = async () => {
   if (temporaryFiles.value.length === 0 || isUploading.value) return;
-  
+
   isUploading.value = true;
   try {
     for (const item of temporaryFiles.value) {
-      await uploadedFileApi.upload(item.file); 
+      await uploadedFileApi.upload(item.file);
     }
-    
+
     // 清空暫存並刷新列表
     temporaryFiles.value = [];
     await fetchServerFiles();
@@ -637,6 +637,27 @@ const setPreview = (file: any) => {
   border: none;
 }
 
+/* --- RWD 返回按鈕優化 --- */
+.btn-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6; /* 淺灰色底 */
+  color: #4b5563;
+  transition: all 0.2s ease;
+  padding: 0;
+  cursor: pointer;
+}
+
+.btn-back:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
 /* --- RWD --- */
 @media (max-width: 47.99rem) {
   .mobile-hidden {
@@ -651,6 +672,15 @@ const setPreview = (file: any) => {
   }
   .section-header {
     padding: 0 1rem;
+  }
+
+  .preview-section .section-header {
+    padding-left: 0.75rem !important; /* 縮小邊距讓按鈕不擁擠 */
+  }
+  .preview-title {
+    font-size: 1.1rem;
+    margin-left: 0.5rem;
+    color: #1f2937;
   }
 }
 </style>
