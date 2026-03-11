@@ -1,0 +1,13 @@
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+[functions]
+  directory = "server" # 這裡會掃描 server 資料夾下的檔案
+
+[[redirects]]
+  # 當前端呼叫 /misc-exe-vue3-api/papers/list
+  from = "/misc-exe-vue3-api/*"
+  # 導向到名為 index 的 function，並保留後面的路徑 (:splat)
+  to = "/.netlify/functions/index/:splat"
+  status = 200
