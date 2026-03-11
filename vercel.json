@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api_1/(.*)",
+      "destination": "https://misc-exe-vue3-server.onrender.com/misc-exe-vue3-api/$1"
+    }
+  ]
+}
