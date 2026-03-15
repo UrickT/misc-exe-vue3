@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import JSZip from "jszip";
+
 import {
   mdiClose,
   mdiUpload,
@@ -14,20 +15,20 @@ import {
   mdiLoading,
   mdiCloudUpload,
 } from "@mdi/js";
-import SvgIcon from "@/components/atoms/SvgIcon.vue";
+import { type UploadedFile } from "@/schema/uploadedFile";
 import { uploadedFileApi } from "@/api/apiServices/uploadedFile";
-import type { UploadedFile } from "@/schema/uploadedFile";
-import JSZip from "jszip";
+const isLoadingRawData = ref(true);
+const error = ref<string | null>(null);
 
 // --- 1. 狀態定義 ---
-const isMultiSelectMode = ref(false);
-const isUploading = ref(false);
-const selectedIds = ref<Set<string>>(new Set());
-const fileInput = ref<HTMLInputElement | null>(null);
+const isMultiSelectMode = ref(false); // 是否開啟批次選取模式 (切換點擊行為：預覽 vs 勾選)
+const isUploading = ref(false); // 上傳狀態鎖 (防止重複提交、顯示 Loading 遮罩)
+const selectedIDs = ref<Set<string>>(new Set()); // 儲存批次選取的檔案唯一 ID (使用 Set 避免重複且方便查找)
+const fileInput = ref<HTMLInputElement | null>(null); // 綁定隱藏的 <input type="file"> 元素，供 JS 觸發點擊
 const showPreviewOnMobile = ref(false);
-
-const serverFiles = ref<UploadedFile[]>([]);
+const serverFiles = ref<UploadedFile[]>([]); // 綁定隱藏的 <input type="file"> 元素，供 JS 觸發點擊
 const temporaryFiles = ref<
+  // 存放使用者剛選取、尚未上傳的本地檔案資訊 (含 Blob 預覽網址)
   {
     file: File;
     id: string;
@@ -38,7 +39,9 @@ const temporaryFiles = ref<
   }[]
 >([]);
 
+// --- 1. 狀態定義更新 ---
 const currentPreview = reactive({
+  // 當前右側面板預覽的目標物件 (控制預覽區渲染內容)
   id: "",
   name: "",
   mediaType: "",
@@ -55,8 +58,10 @@ const fetchServerFiles = async () => {
   try {
     const data = await uploadedFileApi.getAll();
     serverFiles.value = data;
-  } catch (error) {
-    console.error("無法獲取檔案清單", error);
+  } catch (err) {
+    error.value = "無法獲取檔案清單";
+  } finally {
+    isLoadingRawData.value = false;
   }
 };
 
@@ -111,12 +116,14 @@ const handleUploadToServer = async () => {
 // --- 4. 刪除與下載邏輯 ---
 const handleDeleteFile = async (file: any) => {
   if (file.isServer) {
-    if (confirm(`確定要刪除「${file.name}」嗎？`)) {
+    // 確保刪除 ID 提取正確（server-123 -> 123）
+    const sn = file.id.replace("server-", "");
+    if (confirm(`確定要從雲端刪除「${file.name}」嗎？`)) {
       try {
-        await uploadedFileApi.deleteBySn(file.id.replace("server-", ""));
+        await uploadedFileApi.deleteBySn(sn);
         await fetchServerFiles();
       } catch (e) {
-        console.error(e);
+        alert("刪除失敗");
       }
     }
   } else {
@@ -136,20 +143,20 @@ const handleDeleteFile = async (file: any) => {
 
 const handleDownloadAction = async () => {
   if (isMultiSelectMode.value) {
-    if (selectedIds.value.size === 0) return;
+    if (selectedIDs.value.size === 0) return;
     const zip = new JSZip();
     const filesToZip = allFilesDisplay.value.filter((f) =>
-      selectedIds.value.has(f.id),
+      selectedIDs.value.has(f.id),
     );
     for (const f of filesToZip) {
-      const res = await fetch(f.previewUrl!);
+      const res = await fetch(f.previewUrl!, { mode: "cors" });
       const blob = await res.blob();
       zip.file(f.name, blob);
     }
     const content = await zip.generateAsync({ type: "blob" });
     saveBlob(content, `批量下載_${Date.now()}.zip`);
   } else if (currentPreview.previewUrl) {
-    const res = await fetch(currentPreview.previewUrl);
+    const res = await fetch(currentPreview.previewUrl, { mode: "cors" });
     const blob = await res.blob();
     saveBlob(blob, currentPreview.name);
   }
@@ -167,32 +174,48 @@ const saveBlob = (blob: Blob, name: string) => {
 // --- 5. 顯示轉換計算 ---
 const allFilesDisplay = computed(() => {
   const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8201";
-  const server = serverFiles.value.map((f) => {
+
+  return serverFiles.value.map((f) => {
+    // 取得副檔名並轉小寫
     const ext = f.originalName.split(".").pop()?.toLowerCase();
+
+    // 1. 識別媒體類型
     let mediaType = "other";
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!))
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!)) {
       mediaType = "image";
-    else if (ext === "pdf") mediaType = "pdf";
-    else if (["doc", "docx"].includes(ext!)) mediaType = "word";
-    else if (["xls", "xlsx", "csv"].includes(ext!)) mediaType = "excel";
+    } else if (ext === "pdf") {
+      mediaType = "pdf";
+    } else if (["doc", "docx"].includes(ext!)) {
+      mediaType = "word";
+    } else if (["xls", "xlsx", "csv"].includes(ext!)) {
+      mediaType = "excel";
+    }
+
+    // 2. 判斷路徑 (相容 Firebase 或本地路徑)
+    const isRemote = f.path.startsWith("http");
+    const finalUrl = isRemote
+      ? f.path
+      : `${baseUrl}/${f.path.replace(/\\/g, "/")}`;
+
     return {
       id: `server-${f.fileSN}`,
       isServer: true,
       name: decodeURIComponent(f.originalName),
       mediaType,
-      previewUrl: `${baseUrl}/${f.path.replace(/\\/g, "/")}`,
+      previewUrl: finalUrl,
     };
   });
-  return [...server, ...temporaryFiles.value];
 });
 
 const setPreview = (file: any) => {
   if (isMultiSelectMode.value) {
-    if (selectedIds.value.has(file.id)) selectedIds.value.delete(file.id);
-    else selectedIds.value.add(file.id);
+    if (selectedIDs.value.has(file.id)) selectedIDs.value.delete(file.id);
+    else selectedIDs.value.add(file.id);
     return;
   }
+
   Object.assign(currentPreview, file);
+
   if (window.innerWidth < 768) showPreviewOnMobile.value = true;
 };
 </script>
@@ -214,7 +237,7 @@ const setPreview = (file: any) => {
                 class="btn-add-outline"
                 @click="
                   isMultiSelectMode = !isMultiSelectMode;
-                  selectedIds.clear();
+                  selectedIDs.clear();
                 "
               >
                 {{ isMultiSelectMode ? "取消多選" : "多選模式" }}
@@ -255,57 +278,79 @@ const setPreview = (file: any) => {
         </div>
 
         <div class="list-body flex-grow-1 overflow-auto p-3">
-          <div class="file-grid">
-            <div
-              v-for="file in allFilesDisplay"
-              :key="file.id"
-              class="file-item"
-              :class="{
-                active: currentPreview.id === file.id,
-                'is-selected': selectedIds.has(file.id),
-                'is-temp': !file.isServer,
-              }"
-              @click="setPreview(file)"
-            >
-              <div class="thumb-container">
-                <button class="btn-delete" @click.stop="handleDeleteFile(file)">
-                  <SvgIcon :path="mdiClose" :size="12" />
-                </button>
-                <div
-                  v-if="isMultiSelectMode && selectedIds.has(file.id)"
-                  class="selected-mask"
-                >
-                  <div class="check-circle-main">
-                    <SvgIcon :path="mdiCheckBold" :size="20" color="#fff" />
+          <ElSkeleton animated :loading="isLoadingRawData">
+            <template #template>
+              <div class="file-grid">
+                <div v-for="i in 12" :key="`skeleton-${i}`" class="file-item">
+                  <div class="thumb-container">
+                    <ElSkeletonItem variant="image" class="thumb-img" />
+                  </div>
+                  <div class="thumb-label">
+                    <ElSkeletonItem variant="text" />
                   </div>
                 </div>
-                <img
-                  v-if="file.mediaType === 'image'"
-                  :src="file.previewUrl"
-                  class="thumb-img"
-                />
-                <SvgIcon
-                  v-else
-                  :path="
-                    file.mediaType === 'pdf'
-                      ? mdiFilePdfBox
-                      : file.mediaType === 'word'
-                        ? mdiFileWord
-                        : file.mediaType === 'excel'
-                          ? mdiFileExcel
-                          : mdiFileDocumentOutline
-                  "
-                  :size="28"
-                  :class="`icon-${file.mediaType}`"
-                />
-                <div v-if="file.isServer" class="status-badge">
-                  <SvgIcon :path="mdiCheckCircle" :size="14" />
-                </div>
-                <div v-else class="temp-badge">待上傳</div>
               </div>
-              <div class="thumb-label">{{ file.name }}</div>
-            </div>
-          </div>
+            </template>
+            <template #empty>
+              <p class="text-center text-gray-500">目前沒有檔案</p>
+            </template>
+            <template #default>
+              <div class="file-grid">
+                <div
+                  v-for="file in allFilesDisplay"
+                  :key="file.id"
+                  class="file-item"
+                  :class="{
+                    active: currentPreview.id === file.id,
+                    'is-selected': selectedIDs.has(file.id),
+                    'is-temp': !file.isServer,
+                  }"
+                  @click="setPreview(file)"
+                >
+                  <div class="thumb-container">
+                    <button
+                      class="btn-delete"
+                      @click.stop="handleDeleteFile(file)"
+                    >
+                      <SvgIcon :path="mdiClose" :size="12" />
+                    </button>
+                    <div
+                      v-if="isMultiSelectMode && selectedIDs.has(file.id)"
+                      class="selected-mask"
+                    >
+                      <div class="check-circle-main">
+                        <SvgIcon :path="mdiCheckBold" :size="20" color="#fff" />
+                      </div>
+                    </div>
+                    <img
+                      v-if="file.mediaType === 'image'"
+                      :src="file.previewUrl"
+                      class="thumb-img"
+                    />
+                    <SvgIcon
+                      v-else
+                      :path="
+                        file.mediaType === 'pdf'
+                          ? mdiFilePdfBox
+                          : file.mediaType === 'word'
+                            ? mdiFileWord
+                            : file.mediaType === 'excel'
+                              ? mdiFileExcel
+                              : mdiFileDocumentOutline
+                      "
+                      :size="28"
+                      :class="`icon-${file.mediaType}`"
+                    />
+                    <div v-if="file.isServer" class="status-badge">
+                      <SvgIcon :path="mdiCheckCircle" :size="14" />
+                    </div>
+                    <div v-else class="temp-badge">待上傳</div>
+                  </div>
+                  <div class="thumb-label">{{ file.name }}</div>
+                </div>
+              </div>
+            </template>
+          </ElSkeleton>
         </div>
       </div>
 
@@ -325,14 +370,14 @@ const setPreview = (file: any) => {
               <span class="ms-2 fw-bold text-truncate preview-title">
                 {{
                   isMultiSelectMode
-                    ? `已選取 ${selectedIds.size} 個檔案`
+                    ? `已選取 ${selectedIDs.size} 個檔案`
                     : currentPreview.name || "檔案預覽"
                 }}
               </span>
             </div>
             <button
               v-if="
-                isMultiSelectMode ? selectedIds.size > 0 : currentPreview.name
+                isMultiSelectMode ? selectedIDs.size > 0 : currentPreview.name
               "
               class="btn-add"
               @click="handleDownloadAction"
@@ -352,6 +397,7 @@ const setPreview = (file: any) => {
               :src="currentPreview.previewUrl"
               class="main-preview-img"
             />
+
             <iframe
               v-else-if="currentPreview.mediaType === 'pdf'"
               :src="currentPreview.previewUrl"

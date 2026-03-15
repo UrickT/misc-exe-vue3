@@ -17,18 +17,22 @@ import { Search } from "@element-plus/icons-vue";
 
 import { paperApi } from "@/api/apiServices/paper";
 const RAW_PAPERS_DATA = ref<Paper[]>([]);
-const isLoading = ref(true);
+const isLoadingRawData = ref(true);
 const error = ref<string | null>(null);
 
 onMounted(async () => {
+  await fetchRawPapers();
+});
+
+const fetchRawPapers = async () => {
   try {
     RAW_PAPERS_DATA.value = await paperApi.getAll();
   } catch (err) {
     error.value = "無法載入紙張資料";
   } finally {
-    isLoading.value = false;
+    isLoadingRawData.value = false;
   }
-});
+};
 
 const weightUnit = ref<string>("P");
 const mode = ref<FormMode>("search");
@@ -371,8 +375,9 @@ const setDefaultValue = () => {
     ) || null;
 };
 
-setDefaultValue();
-
+watch(() => formattedListOfProductPaperAll.value, () => {
+  setDefaultValue();
+})
 watch(
   () => selectedPaper.value,
   (newPaper) => {
@@ -498,13 +503,14 @@ watch(
                     :prop="fieldsConfigs.paperColor.key"
                     class="mb-0"
                   >
-                    <ElSpace direction="vertical" alignment="flex-center">
-                      <ElSkeleton animated :loading="isLoading">
+                    <ElSpace direction="vertical" alignment="flex-center" class="w-100">
+                      <ElSkeleton animated :loading="isLoadingRawData">
                         <template #template>
                           <div class="mt-2 mb-4 color-selector">
                             <template v-for="_num in 3">
                               <ElSkeletonItem
-                                v-for="_circle in 5"
+                                v-for="i in 5"
+                                :key="`skeleton-color-${i}`"
                                 variant="circle"
                                 style="width: 2.7rem; height: 2.7rem"
                                 class="mb-2"
@@ -589,76 +595,96 @@ watch(
             class="p-0 d-flex flex-column flex-grow-1"
             style="overflow-y: auto; overflow-x: hidden"
           >
-            <div v-if="filteredListOfCard.length !== 0" class="p-4 paper-grid">
-              <BCard
-                v-for="(card, index) in filteredListOfCard"
-                :key="'paper-card-' + index"
-                class="position-relative card-item"
-                :class="{
-                  'selected-card': selectedPaper?.paperSN === card.paperSN,
-                }"
-                :style="{
-                  backgroundColor: card.hexColor,
-                  color: getTextColor(card.hexColor), // 根據亮度自動調整文字顏色
-                }"
-                @click="selectedPaper = card"
-              >
-                <!-- 選取標記 -->
-                <template v-if="selectedPaper?.paperSN === card.paperSN">
-                  <SvgIcon
-                    :path="mdiCheck"
-                    :size="30"
-                    class="selected-card-icon"
+            <ElSkeleton animated :loading="isLoadingRawData">
+              <template #template>
+                <div class="p-4 paper-grid">
+                  <ElSkeletonItem
+                    v-for="i in 12"
+                    :key="`skeleton-card-${i}`"
+                    variant="image"
+                    class="card-item"
                   />
-                </template>
-
-                <BCardBody class="p-0 h-100 d-flex flex-column">
-                  <!-- 上方資訊靠上 -->
-                  <div class="flex-grow-1">
-                    <div class="mb-2 badge-paper-class">
-                      {{ card.paperClass }}
-                    </div>
-                    <div class="mb-1 font-medium">
-                      {{ card.paperName }}
-                    </div>
-                    <div class="paper-color-dark">
-                      {{
-                        card.paperColor === "無"
-                          ? "無指定顏色"
-                          : card.paperColor
-                      }}
-                    </div>
-                  </div>
-
-                  <!-- 下方資訊固定底部 -->
-                  <div
-                    class="d-flex align-items-center justify-content-between mt-auto"
-                  >
-                    <div class="shortID-dark">代號:{{ card.shortID }}</div>
-                    <div v-if="card.paperWeight === '無'" class="shortID-dark">
-                      無指定重量
-                    </div>
-                    <div v-else class="font-medium">
-                      {{ card.paperWeight }}{{ weightUnit }}
-                    </div>
-                  </div>
-                </BCardBody>
-              </BCard>
-
-              <!-- 填充空白格子 -->
-              <template v-if="filteredListOfCard.length % 4 !== 0">
-                <div
-                  v-for="n in 4 - (filteredListOfCard.length % 4)"
-                  :key="'empty-' + n"
-                />
+                </div>
               </template>
-            </div>
-            <div
+              <template #empty>
+                <p class="text-center text-gray-500">目前沒有任何紙材</p>
+              </template>
+              <template #default>
+                <div class="p-4 paper-grid">
+                  <BCard
+                    v-for="(card, index) in filteredListOfCard"
+                    :key="'paper-card-' + index"
+                    class="position-relative card-item"
+                    :class="{
+                      'selected-card': selectedPaper?.paperSN === card.paperSN,
+                    }"
+                    :style="{
+                      backgroundColor: card.hexColor,
+                      color: getTextColor(card.hexColor), // 根據亮度自動調整文字顏色
+                    }"
+                    @click="selectedPaper = card"
+                  >
+                    <!-- 選取標記 -->
+                    <template v-if="selectedPaper?.paperSN === card.paperSN">
+                      <SvgIcon
+                        :path="mdiCheck"
+                        :size="30"
+                        class="selected-card-icon"
+                      />
+                    </template>
+
+                    <BCardBody class="p-0 h-100 d-flex flex-column">
+                      <!-- 上方資訊靠上 -->
+                      <div class="flex-grow-1">
+                        <div class="mb-2 badge-paper-class">
+                          {{ card.paperClass }}
+                        </div>
+                        <div class="mb-1 font-medium">
+                          {{ card.paperName }}
+                        </div>
+                        <div class="paper-color-dark">
+                          {{
+                            card.paperColor === "無"
+                              ? "無指定顏色"
+                              : card.paperColor
+                          }}
+                        </div>
+                      </div>
+
+                      <!-- 下方資訊固定底部 -->
+                      <div
+                        class="d-flex align-items-center justify-content-between mt-auto"
+                      >
+                        <div class="shortID-dark">代號:{{ card.shortID }}</div>
+                        <div
+                          v-if="card.paperWeight === '無'"
+                          class="shortID-dark"
+                        >
+                          無指定重量
+                        </div>
+                        <div v-else class="font-medium">
+                          {{ card.paperWeight }}{{ weightUnit }}
+                        </div>
+                      </div>
+                    </BCardBody>
+                  </BCard>
+
+                  <!-- 填充空白格子 -->
+                  <template v-if="filteredListOfCard.length % 4 !== 0">
+                    <div
+                      v-for="n in 4 - (filteredListOfCard.length % 4)"
+                      :key="'empty-' + n"
+                    />
+                  </template>
+                </div>
+              </template>
+            </ElSkeleton>
+            <!-- <div
               v-else
               class="h-100 d-flex flex-column align-items-center justify-content-center"
             >
               <ElSpace direction="vertical" alignment="flex-center">
-                <ElSkeleton animated :loading="isLoading">
+                <ElSkeleton animated :loading="isLoadingRawData">
                   <template #template>
                     <ElSkeletonItem
                       variant="image"
@@ -680,7 +706,7 @@ watch(
                   </template>
                 </ElSkeleton>
               </ElSpace>
-            </div>
+            </div> -->
           </BCardBody>
         </BCard>
       </BCol>
@@ -904,7 +930,11 @@ watch(
 
 /** ===== 顏色選擇器 ===== */
 .color-selector {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 確保五個格子寬度永遠均分，不會因為內容少而變形 */
+  gap: 0.75rem;
   width: 100%;
+  justify-items: center;
 }
 
 .color-circle-wrapper {
@@ -913,6 +943,7 @@ watch(
   align-items: center;
   cursor: pointer;
   width: 100%;
+  max-width: 2.8rem; 
 }
 
 /* hover 放大效果 */
@@ -922,13 +953,15 @@ watch(
 
 .color-circle {
   width: 100%;
-  aspect-ratio: 1 / 1; /* 確保在任何寬度下都是正圓形 */
+  aspect-ratio: 1 / 1; /* 強制維持 1:1 比例，這是防止變形的關鍵 */
   border-radius: 50%;
-  border: 0.125rem solid var(--color-grey-light-1);
-  transition: all 0.2s;
+  border: 0.125rem solid #eee;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .color-circle.circle-text-color {
