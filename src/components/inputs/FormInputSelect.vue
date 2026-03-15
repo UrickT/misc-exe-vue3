@@ -38,14 +38,16 @@ const handleFilter = (query: string) => {
   }
 
   const lowQuery = query.toLowerCase();
-  filteredData.value = unref(props.fieldConfig.options.data).filter((item: any) => {
-    const label = String(item[labelKey.value] || "").toLowerCase();
-    const prefix = prefixKey.value
-      ? String(item[prefixKey.value] || "").toLowerCase()
-      : "";
+  filteredData.value = unref(props.fieldConfig.options.data).filter(
+    (item: any) => {
+      const label = String(item[labelKey.value] || "").toLowerCase();
+      const prefix = prefixKey.value
+        ? String(item[prefixKey.value] || "").toLowerCase()
+        : "";
 
-    return label.includes(lowQuery) || prefix.includes(lowQuery);
-  });
+      return label.includes(lowQuery) || prefix.includes(lowQuery);
+    },
+  );
 };
 
 const onChange = (value: any) => {
@@ -138,5 +140,21 @@ watch(internalValue, (newValue) => {
 :deep(.el-select-dropdown__item) {
   display: flex;
   align-items: center;
+}
+
+@media (max-width: 767px) {
+  /* 強制所有輸入元件及其內層在 Focus 時維持 16px，並不准觸發系統縮放 */
+  :deep(.el-input__inner),
+  :deep(.el-select .el-input__inner),
+  :deep(.el-textarea__inner),
+  :deep(.el-input__wrapper),
+  :deep(.el-select-v2__wrapper) {
+    font-size: 16px !important; /* iOS 避開自動放大的門檻 */
+    height: 3rem !important;
+  }
+
+  :deep(.el-select-dropdown__item) {
+    font-size: 16px !important;
+  }
 }
 </style>

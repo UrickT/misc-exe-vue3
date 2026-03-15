@@ -686,34 +686,6 @@ watch(
                 </div>
               </template>
             </ElSkeleton>
-            <!-- <div
-              v-else
-              class="h-100 d-flex flex-column align-items-center justify-content-center"
-            >
-              <ElSpace direction="vertical" alignment="flex-center">
-                <ElSkeleton animated :loading="isLoadingRawData">
-                  <template #template>
-                    <ElSkeletonItem
-                      variant="image"
-                      style="width: 20rem; height: 24rem"
-                      class="mb-2"
-                    />
-                    <ElSkeletonItem variant="text" style="width: 50%" />
-                    <ElSkeletonItem
-                      v-for="_row in 4"
-                      variant="text"
-                      style="width: 100%"
-                    />
-                  </template>
-                  <template #default>
-                    <ElEmpty
-                      :image-size="200"
-                      description="請重新調整您的篩選條件"
-                    />
-                  </template>
-                </ElSkeleton>
-              </ElSpace>
-            </div> -->
           </BCardBody>
         </BCard>
       </BCol>
@@ -792,14 +764,6 @@ watch(
 
   .color-circle-wrapper {
     max-width: 2.2rem; /* 配合 6 欄縮小圓圈上限 */
-  }
-
-  /* 手機版字體與輸入框高度調整 (防止 iOS 放大) */
-  :deep(.el-input__inner),
-  :deep(.el-select .el-input__inner),
-  :deep(.el-textarea__inner) {
-    font-size: 16px !important;
-    height: 3rem !important;
   }
 
   /* 手機版卡片網格與間距 */

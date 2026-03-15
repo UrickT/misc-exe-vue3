@@ -173,3 +173,23 @@ getStateOfCurrentValue(props);
     <!-- <code> value: {{ props.inputConfig.currentValue }} </code><br /> -->
   </div>
 </template>
+
+<style scoped>
+/* 手機版樣式優化 (max-width: 767px) */
+@media (max-width: 767px) {
+  /* 手機版字體與輸入框高度調整 (防止 iOS 放大) */
+  :deep(.el-input__inner),
+  :deep(.el-select .el-input__inner),
+  :deep(.el-textarea__inner),
+  :deep(.el-input__wrapper),
+  :deep(.el-select__wrapper) {
+    font-size: 16px !important; /* iOS 避開自動放大的門檻 */
+    height: 3rem !important;
+  }
+  
+  :deep(.el-select-dropdown__item) {
+    font-size: 16px !important;
+    height: 3rem !important;
+  }
+}
+</style>
