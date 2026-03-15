@@ -116,7 +116,7 @@ const handleUploadToServer = async () => {
 // --- 4. 刪除與下載邏輯 ---
 const handleDeleteFile = async (file: any) => {
   if (file.isServer) {
-    // 確保刪除 ID 提取正確（server-123 -> 123）
+    // 1. 處理伺服器檔案
     const sn = file.id.replace("server-", "");
     if (confirm(`確定要從雲端刪除「${file.name}」嗎？`)) {
       try {
@@ -127,9 +127,15 @@ const handleDeleteFile = async (file: any) => {
       }
     }
   } else {
-    temporaryFiles.value = temporaryFiles.value.filter((f) => f.id !== file.id);
+    // 2. 處理待上傳檔案
+    const tempIndex = parseInt(file.id.replace("temp-", ""));
+    
+    if (!isNaN(tempIndex)) {
+      temporaryFiles.value.splice(tempIndex, 1);
+    }
   }
 
+  // 3. 清空預覽
   if (currentPreview.id === file.id) {
     Object.assign(currentPreview, {
       id: "",
@@ -172,26 +178,38 @@ const saveBlob = (blob: Blob, name: string) => {
 };
 
 // --- 5. 顯示轉換計算 ---
+/**
+ * 根據副檔名回傳統一的媒體類型標籤
+ * @param ext 副檔名 (不含點，小寫)
+ * @returns 'image' | 'pdf' | 'word' | 'excel' | 'other'
+ */
+const getMediaType = (ext: string | undefined): string => {
+  if (!ext) return "other";
+
+  // 1. 明確定義 Record 的類型，確保 Key 只能是這幾種字串
+  const typeMap: Record<string, string[]> = {
+    image: ["jpg", "jpeg", "png", "gif", "webp", "svg"],
+    pdf: ["pdf"],
+    word: ["doc", "docx"],
+    excel: ["xls", "xlsx", "csv"],
+  };
+
+  // 2. 透過 Object.entries 進行搜尋，既安全又直覺
+  const entry = Object.entries(typeMap).find(([_, extensions]) =>
+    extensions.includes(ext.toLowerCase()),
+  );
+
+  // 如果找到了就回傳 key (如 'image')，否則回傳 'other'
+  return entry ? entry[0] : "other";
+};
+
 const allFilesDisplay = computed(() => {
   const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8201";
 
-  return serverFiles.value.map((f) => {
-    // 取得副檔名並轉小寫
+  // 1. 已上傳檔案 (Server)
+  const uploadedFiles = serverFiles.value.map((f) => {
+    // ... 前面的媒體類型與路徑邏輯保持不變 ...
     const ext = f.originalName.split(".").pop()?.toLowerCase();
-
-    // 1. 識別媒體類型
-    let mediaType = "other";
-    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext!)) {
-      mediaType = "image";
-    } else if (ext === "pdf") {
-      mediaType = "pdf";
-    } else if (["doc", "docx"].includes(ext!)) {
-      mediaType = "word";
-    } else if (["xls", "xlsx", "csv"].includes(ext!)) {
-      mediaType = "excel";
-    }
-
-    // 2. 判斷路徑 (相容 Firebase 或本地路徑)
     const isRemote = f.path.startsWith("http");
     const finalUrl = isRemote
       ? f.path
@@ -199,12 +217,27 @@ const allFilesDisplay = computed(() => {
 
     return {
       id: `server-${f.fileSN}`,
-      isServer: true,
+      isServer: true, // 是伺服器檔案
+      status: "uploaded",
       name: decodeURIComponent(f.originalName),
-      mediaType,
+      mediaType: getMediaType(ext),
       previewUrl: finalUrl,
     };
   });
+
+  // 2. 待上傳檔案 (Temporary)
+  const pendingFiles = temporaryFiles.value.map((f, index) => {
+    return {
+      id: `temp-${index}`,
+      isServer: false,
+      status: "pending",
+      name: f.name,
+      mediaType: f.mediaType,
+      previewUrl: f.previewUrl,
+    };
+  });
+
+  return [...uploadedFiles, ...pendingFiles];
 });
 
 const setPreview = (file: any) => {
