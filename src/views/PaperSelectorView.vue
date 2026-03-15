@@ -375,9 +375,12 @@ const setDefaultValue = () => {
     ) || null;
 };
 
-watch(() => formattedListOfProductPaperAll.value, () => {
-  setDefaultValue();
-})
+watch(
+  () => formattedListOfProductPaperAll.value,
+  () => {
+    setDefaultValue();
+  },
+);
 watch(
   () => selectedPaper.value,
   (newPaper) => {
@@ -503,7 +506,11 @@ watch(
                     :prop="fieldsConfigs.paperColor.key"
                     class="mb-0"
                   >
-                    <ElSpace direction="vertical" alignment="flex-center" class="w-100">
+                    <ElSpace
+                      direction="vertical"
+                      alignment="flex-center"
+                      class="w-100"
+                    >
                       <ElSkeleton animated :loading="isLoadingRawData">
                         <template #template>
                           <div class="mt-2 mb-4 color-selector">
@@ -563,7 +570,7 @@ watch(
               <!-- 底部固定區 -->
               <ElDivider class="m-0" />
 
-              <div class="p-4">
+              <div class="p-3">
                 <!-- 最終選擇 -->
                 <div class="mb-3">
                   <FormInputTextarea
@@ -597,7 +604,7 @@ watch(
           >
             <ElSkeleton animated :loading="isLoadingRawData">
               <template #template>
-                <div class="p-4 paper-grid">
+                <div class="p-3 paper-grid">
                   <ElSkeletonItem
                     v-for="i in 12"
                     :key="`skeleton-card-${i}`"
@@ -610,7 +617,7 @@ watch(
                 <p class="text-center text-gray-500">目前沒有任何紙材</p>
               </template>
               <template #default>
-                <div class="p-4 paper-grid">
+                <div class="p-3 paper-grid">
                   <BCard
                     v-for="(card, index) in filteredListOfCard"
                     :key="'paper-card-' + index"
@@ -715,14 +722,21 @@ watch(
 </template>
 
 <style scoped>
-/* 基礎設定 */
+/* 基礎設定與變數 */
 .container-layout {
   background-color: #fff;
   min-height: 100vh;
 }
 
-/* 電腦版 (md 以上) 的特殊樣式 */
-@media (min-width: 48rem) {
+/* 核心紫色與選中邏輯 */
+.selected-card,
+.selected-card-icon,
+.color-circle-wrapper {
+  --color-selected: #6366f1;
+}
+
+/* 電腦版樣式 (min-width: 768px) */
+@media (min-width: 768px) {
   .container-layout {
     height: 100vh;
     overflow: hidden;
@@ -730,7 +744,7 @@ watch(
 
   .left-panel {
     height: 100vh;
-    border-right: 0.0625rem solid #eee;
+    border-right: 1px solid #eee;
   }
 
   .form-scroll-area {
@@ -743,12 +757,13 @@ watch(
     overflow-y: auto;
   }
 
-  /* 電腦版：顏色一行固定 5 個 */
+  /* 電腦版顏色選擇器：維持 5 欄 */
   .color-selector {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 0.75rem;
     width: 100%;
+    justify-items: center;
   }
 
   .right-card {
@@ -756,71 +771,63 @@ watch(
   }
 }
 
-/* 手機版樣式優化 */
-@media (max-width: 47.99875rem) {
-  .left-panel {
-    height: auto;
+/* 手機版樣式優化 (max-width: 767px) */
+@media (max-width: 767px) {
+  :deep(.p-3) {
+    padding: 1.25rem !important;
   }
 
-  /* 讓表單在手機上不要滾動，跟著頁面走 */
-  .form-scroll-area {
-    overflow-y: visible;
+  .mb-2 {
+    margin-bottom: 1.5rem !important;
   }
 
-  /* 調整 RWD 網格：手機 2 欄 */
-  .paper-grid {
-    display: grid !important;
-    gap: 0.75rem;
-    padding: 1rem;
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
-  /* 手機版底部選擇區固定在螢幕下方 (Sticky) */
-  .bg-light.p-4 {
-    position: sticky;
-    bottom: 0;
-    z-index: 100;
-    border-top: 0.0625rem solid #ddd;
-  }
-
-  /* 手機版：顏色同樣維持一行 5 個，間距縮小 */
+  /* 顏色選擇器調整：改為一行 6 個 */
   .color-selector {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr) !important;
     gap: 0.5rem;
     width: 100%;
+    justify-items: center;
   }
 
-  /* 手機文字縮小處理 */
-  .color-circle.circle-text-color {
-    font-size: 0.65rem !important; /* 顏色圓圈文字縮小 */
+  .color-circle-wrapper {
+    max-width: 2.2rem; /* 配合 6 欄縮小圓圈上限 */
   }
 
-  .right-card {
-    height: auto;
+  /* 手機版字體與輸入框高度調整 (防止 iOS 放大) */
+  :deep(.el-input__inner),
+  :deep(.el-select .el-input__inner),
+  :deep(.el-textarea__inner) {
+    font-size: 16px !important;
+    height: 3rem !important;
   }
 
-  .alert-left,
-  .alert-right {
-    font-size: 0.75rem !important; /* 警示文字縮小 */
+  /* 手機版卡片網格與間距 */
+  .paper-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+    padding: 1.25rem !important;
   }
 
-  .badge-paper-class {
-    font-size: 0.65rem !important; /* 卡片標籤縮小 */
+  .card-item {
+    height: 9.375rem;
+    margin: 0 !important;
   }
 
-  .paper-color-dark,
-  .shortID-dark,
-  .paper-color-light,
-  .shortID-light {
-    font-size: 0.7rem !important; /* 卡片內部資訊縮小 */
-  }
-
-  .card-title {
-    font-size: 1.1rem !important; /* 標題稍微縮小 */
+  /* 手機版底部固定區 */
+  .left-panel .p-3:last-child {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    padding: 1.25rem !important;
+    border-top: 1px solid #f0f0f0;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
+    z-index: 50;
   }
 }
 
+/* 通用元件樣式 */
 .paper-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -828,38 +835,30 @@ watch(
   align-content: start;
 }
 
-.selected-card,
-.selected-card-icon,
-.color-circle-wrapper {
-  --color-selected: #6366f1;
-}
-
 .left-card {
   background-color: white;
   border: none;
   border-radius: 0;
-  border-right: 0.0625rem solid var(--color-grey-light-1);
+  border-right: 1px solid var(--color-grey-light-1);
 }
 
 .right-card {
   background-color: var(--color-grey-light-3);
   border: none;
   border-radius: 0;
-  border-right: 0.0625rem solid var(--color-grey-light-1);
+  border-right: 1px solid var(--color-grey-light-1);
   box-shadow:
     inset -0.25rem 0 0.375rem rgba(0, 0, 0, 0.03),
     inset 0.25rem 0 0.375rem rgba(0, 0, 0, 0.03);
 }
 
-/* 左右文字 */
-.alert-left {
+.alert-left,
+.alert-right {
   line-height: 2rem;
   font-size: 0.875rem;
 }
 
 .alert-right {
-  line-height: 2rem;
-  font-size: 0.875rem;
   cursor: pointer;
   text-decoration: underline;
 }
@@ -868,20 +867,20 @@ watch(
   flex: 1 1 calc(25% - 2rem);
   margin: 0.5rem;
   height: 10rem;
-  border: 0.0625rem solid var(--color-grey-light-1);
+  border: 1px solid var(--color-grey-light-1);
   border-radius: 0.75rem;
-  box-shadow: 0 0.125rem 0.375rem rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease-in-out;
   cursor: pointer;
 }
 
 .card-item:hover {
   transform: translateY(-0.25rem);
-  box-shadow: 0 0.375rem 0.75rem rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
 .selected-card {
-  border: 0.25rem solid var(--color-selected);
+  border: 4px solid var(--color-selected);
 }
 
 .selected-card-icon {
@@ -891,27 +890,25 @@ watch(
   background: var(--color-selected);
   color: white;
   border-radius: 50%;
-  padding: 0.375rem;
+  padding: 6px;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0.125rem 0.125rem 0.125rem rgba(0, 0, 0, 0.15));
-  transition: all 0.2s ease;
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.15));
 }
 
 .badge-paper-class {
   display: inline-block;
-  margin-top: -0.4375rem;
-  margin-left: -0.125rem;
+  margin-top: -7px;
+  margin-left: -2px;
   padding: 0.25rem 0.5rem;
-  border-radius: 31.25rem;
+  border-radius: 500px;
   background-color: var(--color-grey-light-1);
   color: black;
   font-size: 0.75rem;
   line-height: 1.5;
   text-align: center;
-  white-space: nowrap;
 }
 
 .paper-color-dark,
@@ -928,34 +925,25 @@ watch(
   line-height: 1.4;
 }
 
-/** ===== 顏色選擇器 ===== */
-.color-selector {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 確保五個格子寬度永遠均分，不會因為內容少而變形 */
-  gap: 0.75rem;
-  width: 100%;
-  justify-items: center;
-}
-
+/* 5. 顏色選擇器 */
 .color-circle-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   width: 100%;
-  max-width: 2.8rem; 
+  max-width: 2.8rem;
 }
 
-/* hover 放大效果 */
 .color-circle-wrapper:hover .color-circle {
   transform: scale(1.3);
 }
 
 .color-circle {
   width: 100%;
-  aspect-ratio: 1 / 1; /* 強制維持 1:1 比例，這是防止變形的關鍵 */
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
-  border: 0.125rem solid #eee;
+  border: 2px solid #eee;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   justify-content: center;
@@ -972,7 +960,7 @@ watch(
 }
 
 .color-circle-wrapper.selected .color-circle {
-  border: 0.1875rem solid var(--color-selected);
-  box-shadow: 0 0 0 0.1875rem rgba(99, 102, 241, 0.5);
+  border: 3px solid var(--color-selected);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
 }
 </style>
