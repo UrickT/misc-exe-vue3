@@ -13,17 +13,17 @@ const router = useRouter();
 
 const cardList: PortfolioCard[] = [
   {
-    title: "紙材選擇器",
+    title: "紙材查詢器",
     route: "PaperSelector",
     description:
-      "針對印刷產業開發。結合動態篩選演算法，將上百種紙張規格轉化為直觀的檢索介面，解決傳統查詢耗時的問題。",
+      "結合動態篩選，將各類紙張規格轉化為直觀的檢索介面。",
     tags: ["Vue 3", "MongoDB"],
   },
   {
     title: "檔案上傳器",
     route: "FileUploader",
     description:
-      "整合雲端儲存與 JSZip 技術。克服跨來源 (CORS) 預覽衝突，支援多格式即時預覽與前端批量壓縮下載。",
+      "整合雲端儲存，支援多格式即時預覽與前端批量壓縮下載。",
     tags: ["Cloudinary", "JSZip", "MongoDB"],
   },
 ];
