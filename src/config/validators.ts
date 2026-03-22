@@ -1,5 +1,18 @@
 import { dayjs } from "@/plugins/dayjs";
 
+/** 範圍驗證參數介面 */
+interface NumberRangeOptions {
+  value: number | string | null | undefined;
+  min?: number;
+  max?: number;
+}
+
+/** 日期範圍參數介面 */
+interface DateRange {
+  startDate: string | Date | null | undefined;
+  endDate: string | Date | null | undefined;
+}
+
 // 橋接工具範例（適配 element plus）
 export const wrapValidator = (
   validatorFn: (val: any) => boolean | string | null | undefined,
@@ -23,19 +36,6 @@ export const wrapValidator = (
     }
   };
 };
-
-/** 範圍驗證參數介面 */
-interface NumberRangeOptions {
-  value: number | string | null | undefined;
-  min?: number;
-  max?: number;
-}
-
-/** 日期範圍參數介面 */
-interface DateRange {
-  startDate: string | Date | null | undefined;
-  endDate: string | Date | null | undefined;
-}
 
 export const isValidNone = (): boolean => {
   return true;

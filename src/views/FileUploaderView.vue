@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import JSZip from "jszip";
-
 import {
   mdiClose,
   mdiUpload,
@@ -15,8 +14,9 @@ import {
   mdiLoading,
   mdiCloudUpload,
 } from "@mdi/js";
-import { type UploadedFile } from "@/schema/uploadedFile";
 import { uploadedFileApi } from "@/api/apiServices/uploadedFile";
+import { type UploadedFile } from "@/schema/uploadedFile";
+
 const isLoadingRawData = ref(true);
 const error = ref<string | null>(null);
 

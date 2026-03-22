@@ -10,7 +10,7 @@ export async function REQUEST<T>(
   try {
     const response = await fetch(url, {
       ...options,
-      // 可以在這裡加入全域的 headers，例如 Authorization
+      // 可依情況加入：headers，例如 Authorization
     });
 
     if (!response.ok) {

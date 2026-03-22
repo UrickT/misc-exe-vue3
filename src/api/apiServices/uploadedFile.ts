@@ -7,7 +7,6 @@ export const uploadedFileApi = {
   getAll: () => REQUEST<UploadedFile[]>(API_ROUTES.UPLOADED_FILE.GET_ALL),
 
   /** 根據 SN 獲取單一檔案 */
-  // 💡 這裡建議也改成一致的呼叫方式
   getBySn: (sn: number) =>
     REQUEST<UploadedFile>(API_ROUTES.UPLOADED_FILE.GET_BY_SN(sn)),
 
