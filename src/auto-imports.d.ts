@@ -66,10 +66,22 @@ declare global {
   const markRaw: typeof import('vue').markRaw
   const mdiC: typeof import('./config/icons').mdiC
   const mdiCheck: typeof import('./config/icons').mdiCheck
+  const mdiCheckBold: typeof import('./config/icons').mdiCheckBold
+  const mdiCheckCircle: typeof import('./config/icons').mdiCheckCircle
   const mdiChevronDown: typeof import('./config/icons').mdiChevronDown
+  const mdiChevronLeft: typeof import('./config/icons').mdiChevronLeft
+  const mdiClose: typeof import('./config/icons').mdiClose
   const mdiCloseCircle: typeof import('./config/icons').mdiCloseCircle
   const mdiCloseThick: typeof import('./config/icons').mdiCloseThick
+  const mdiCloudUpload: typeof import('./config/icons').mdiCloudUpload
+  const mdiDownload: typeof import('./config/icons').mdiDownload
+  const mdiFileDocumentOutline: typeof import('./config/icons').mdiFileDocumentOutline
+  const mdiFileExcel: typeof import('./config/icons').mdiFileExcel
+  const mdiFilePdfBox: typeof import('./config/icons').mdiFilePdfBox
+  const mdiFileWord: typeof import('./config/icons').mdiFileWord
+  const mdiLoading: typeof import('./config/icons').mdiLoading
   const mdiMagnify: typeof import('./config/icons').mdiMagnify
+  const mdiUpload: typeof import('./config/icons').mdiUpload
   const nextTick: typeof import('vue').nextTick
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
@@ -203,10 +215,22 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly mdiCheck: UnwrapRef<typeof import('./config/icons')['mdiCheck']>
+    readonly mdiCheckBold: UnwrapRef<typeof import('./config/icons')['mdiCheckBold']>
+    readonly mdiCheckCircle: UnwrapRef<typeof import('./config/icons')['mdiCheckCircle']>
     readonly mdiChevronDown: UnwrapRef<typeof import('./config/icons')['mdiChevronDown']>
+    readonly mdiChevronLeft: UnwrapRef<typeof import('./config/icons')['mdiChevronLeft']>
+    readonly mdiClose: UnwrapRef<typeof import('./config/icons')['mdiClose']>
     readonly mdiCloseCircle: UnwrapRef<typeof import('./config/icons')['mdiCloseCircle']>
     readonly mdiCloseThick: UnwrapRef<typeof import('./config/icons')['mdiCloseThick']>
+    readonly mdiCloudUpload: UnwrapRef<typeof import('./config/icons')['mdiCloudUpload']>
+    readonly mdiDownload: UnwrapRef<typeof import('./config/icons')['mdiDownload']>
+    readonly mdiFileDocumentOutline: UnwrapRef<typeof import('./config/icons')['mdiFileDocumentOutline']>
+    readonly mdiFileExcel: UnwrapRef<typeof import('./config/icons')['mdiFileExcel']>
+    readonly mdiFilePdfBox: UnwrapRef<typeof import('./config/icons')['mdiFilePdfBox']>
+    readonly mdiFileWord: UnwrapRef<typeof import('./config/icons')['mdiFileWord']>
+    readonly mdiLoading: UnwrapRef<typeof import('./config/icons')['mdiLoading']>
     readonly mdiMagnify: UnwrapRef<typeof import('./config/icons')['mdiMagnify']>
+    readonly mdiUpload: UnwrapRef<typeof import('./config/icons')['mdiUpload']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>

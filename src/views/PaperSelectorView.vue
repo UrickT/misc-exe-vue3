@@ -16,6 +16,7 @@ import { type Paper } from "@/schema/paper";
 import { Search } from "@element-plus/icons-vue";
 
 import { paperApi } from "@/api/apiServices/paper";
+import { ElEmpty } from "element-plus";
 const RAW_PAPERS_DATA = ref<Paper[]>([]);
 const isLoadingRawData = ref(true);
 const error = ref<string | null>(null);
@@ -617,7 +618,10 @@ watch(
                 <p class="text-center text-gray-500">目前沒有任何紙材</p>
               </template>
               <template #default>
-                <div class="p-3 paper-grid">
+                <div
+                  v-if="filteredListOfCard.length > 0"
+                  class="p-3 paper-grid"
+                >
                   <BCard
                     v-for="(card, index) in filteredListOfCard"
                     :key="'paper-card-' + index"
@@ -683,6 +687,11 @@ watch(
                       :key="'empty-' + n"
                     />
                   </template>
+                </div>
+                <div v-else class="p-3 d-flex flex-grow-1">
+                  <ElEmpty class="w-100 text-center text-gray-500">
+                    目前沒有任何紙材
+                  </ElEmpty>
                 </div>
               </template>
             </ElSkeleton>
